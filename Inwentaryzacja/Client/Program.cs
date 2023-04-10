@@ -29,7 +29,7 @@ builder.Services.AddScoped<TokenHttpClientService>();
 builder.Services.AddMsalAuthentication(options =>
 {
     builder.Configuration.Bind("AzureAd", options.ProviderOptions.Authentication);
-    options.ProviderOptions.DefaultAccessTokenScopes.Add("api://e7ceb1bf-91ef-496e-960a-30bbd3429762/API.Access");//uzywac cale uri skopiowane z rejestr aplikacji
+    options.ProviderOptions.DefaultAccessTokenScopes.Add("api scoped");//uzywac cale uri skopiowane z rejestr aplikacji
 });
 //*****
 await builder.Build().RunAsync();
