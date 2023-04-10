@@ -1,0 +1,284 @@
+﻿@page "/faktury/create"
+
+@using Inwentaryzacja.Client.Core;
+
+@inject NavigationManager NavigationManager
+@inject TokenHttpClientService client
+
+<h3>Dodawanie Faktury</h3>
+
+@if (faktury == null)
+{
+    <text>Loading...</text>
+}
+else
+{
+    <div class="container">
+        <EditForm Model="faktura">
+            <div class="row">
+                <div class="col">
+                    <RadzenCard>
+                        <label class="m-1"> Nazwa Faktury <span style="color: red;">*</span></label>
+                        <br />
+                        <input class="form-control m-1" @bind="@faktura.NazwaFaktura" />
+
+                        <label class="m-1"> Wprowadź kwotę netto faktury <span style="color: red;">*</span></label>
+                        <br />
+                        <input type="number" class="form-control m-1" @bind="@faktura.KwotaFaktura" />
+
+                        <label class="m-1"> Wprowadź datę wystawienia faktury <span style="color: red;">*</span></label>
+                        <br />
+                        <InputDate class="m-1" @bind-Value="@faktura.DataFaktura" />
+                        <br/>
+
+                        <label class="m-1"> Wybierz spółke <span style="color: red;">*</span></label>
+                        <br />
+                        <InputSelect class="form-control" id="spolki" @bind-Value="@faktura.IdSpolka">
+                            @foreach (Spolki spolka in spolki)
+                            {
+                                <option value="@spolka.IdSpolka">@spolka.NazwaSpolka</option>
+                            }
+                        </InputSelect>
+
+                        <label class="m-1"> Typ faktury <span style="color: red;">*</span></label>
+                        <br />
+                        <InputSelect class="form-control" @bind-Value="@faktura.IdTypFaktura">
+                            @foreach (TypFaktury typFaktury in typyFaktur)
+                            {
+                                <option value="@typFaktury.IdTypFaktury">@typFaktury.NazwaTypFaktury</option>
+                            }
+                        </InputSelect>
+
+                        <br/>
+                        <label class="m-1"> Załącz Fakture </label>
+                        <br />
+                        <InputFile OnChange="@LoadFiles" multiple />
+
+                    </RadzenCard>
+
+                    <input type="button" class="btn btn-primary mt-3" @onclick="@Save" value="Zapisz" />
+                    <input type="button" class="btn mt-3" @onclick="@Cancel" value="Cancel" />
+
+                </div>
+
+                <div class="col">
+                    @if (faktura.IdTypFaktura == 2 || faktura.IdTypFaktura == 4)@*sprzet*@
+                    {
+                        <RadzenCard class="mb-3">
+                            <h5>Dodawanie sprzętu do faktury</h5>
+                            <br/>
+
+                            <label class="m-1"> Dodaj sprzęt </label>
+                            <br/>
+
+                            <AddMultipleElements CountNumber="@sprzetAddNumber" Data="@sprzetWithoutFaktura" ItemsId="SprzetyId" Property="NazwaSprzet" ID_Property="IdSprzet" />
+
+                        </RadzenCard>
+                    }
+                    @if (faktura.IdTypFaktura == 1 || faktura.IdTypFaktura == 4) @*licencje*@
+                    {
+                        <RadzenCard>
+                            <h5>Dodawanie licencji do faktury</h5>
+                            <br/>
+
+                            @if (createNewLic == false)
+                            {
+                                <label class="m-1"> Dodaj licencje </label>
+                                <br />
+
+                                <AddMultipleElements CountNumber="@licencjeAddNumber" Data="@licencje" ItemsId="LicencjeId" Property="Nazwa" ID_Property="IdLic" />
+
+                                <br />
+                                <input type="button" class="btn btn-primary m-1" @onclick="@(() => {createNewLic = true;})" value="Utwórz nową" />
+                            }
+                            else
+                            {
+                                @*tworzenie nowej licencji*@
+
+                                <label class="m-1"> Wpisz nazwe programu <span style="color: red;">*</span></label>
+                                <br />
+                                <input class="form-control m-1" @bind="@licencja.Nazwa" />
+
+                                <label class="m-1"> Klucz produktu </label>
+                                <br />
+                                <input class="form-control m-1" @bind="@licencja.Klucz" />
+
+                                <label class="m-1"> Wybierz datę wygaśniecia licencji </label>
+                                <br />
+                                <InputDate class="m-1" @bind-Value="@licencja.DataWygLic"/>
+                                <br/>
+
+                                <label class="m-1"> Wybierz ilość przypisań licencji </label>
+                                <br />
+                                <input type="number" class="form-control m-1" @bind="@licencja.LiczbaLicencji" />
+
+                                <label class="m-1"> Dodaj komputer </label>
+                                <br/>
+                                <AddMultipleElements CountNumber="@kompAddNumber" Data="@komps" ItemsId="KompyId" Property="KompNazwaDomena" ID_Property="IdKomp" />
+
+                                <br/>
+                                <input type="button" class="btn btn-primary" @onclick="@SaveLic" value="Zapisz nową licencje" />
+                            }
+
+                        </RadzenCard>                  
+                    }
+                </div>
+
+            </div>
+        </EditForm>
+
+        
+
+    </div>
+
+}
+
+@code {
+    #region pomocnicze zmienne
+
+    int sprzetAddNumber = 0;//przechowuje liczbe dodawanych sprzetow decyduje to o ilosci wyswietlanych selectow dla dodawania sprzetu
+    int kompAddNumber = 0;//przechowuje liczbe dodawanych kompow do licencji decyduje to o ilosci wyswietlanych selectow dla dodawania kompow
+    int licencjeAddNumber = 0;//przechowuje liczbe dodawanych licencji decyduje to o ilosci wyswietlanych selectow dla dodawania licencji
+
+    bool createNewLic = false;
+
+    List<int> SprzetyId = new List<int>();
+    List<int> KompyId = new List<int>();
+    List<int> LicencjeId = new List<int>();
+    #endregion
+
+    Faktury faktura = new Faktury();
+    Komp komp = new Komp();
+    Licencje licencja = new Licencje();
+    Sprzet sprzet = new();
+
+    TypFaktury[] typyFaktur { get; set; }
+    Faktury[] faktury { get; set; }
+    Spolki[] spolki { get; set; }
+    Licencje[] licencje { get; set; }
+
+    Komp[] komps { get; set; }
+
+    Sprzet[] allsprzet { get; set; }
+    Sprzet[] sprzetWithoutFaktura { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await client.SetToken();
+
+        typyFaktur = await client.GetFromJsonAsync<TypFaktury[]>("api/typfaktury");
+        faktury = await client.GetFromJsonAsync<Faktury[]>("api/faktury");
+        spolki = await client.GetFromJsonAsync<Spolki[]>("api/spoleczki");
+        komps = await client.GetFromJsonAsync<Komp[]>("api/komp");
+        allsprzet = await client.GetFromJsonAsync<Sprzet[]>("api/sprzet");
+        sprzetWithoutFaktura = allsprzet.Where(s => s.IdFaktura == null).ToArray();
+        licencje = await client.GetFromJsonAsync<Licencje[]>("api/licencje");
+        licencje = licencje.Where(l => l.IdFaktura == null).ToArray();
+    }
+
+    private async Task LoadFiles(InputFileChangeEventArgs e)
+    {
+        var buffer = new byte[4096];
+        bool zczytanaNazwa = false;
+
+        try
+        {
+            foreach (var file in e.GetMultipleFiles(e.FileCount))
+            {
+                if (zczytanaNazwa == false)
+                {
+                    faktura.PlikNazwa = file.Name;
+
+                    zczytanaNazwa = true;
+                }
+
+                _ = InvokeAsync(StateHasChanged);
+
+                using var stream = file.OpenReadStream(maxAllowedSize: long.MaxValue);
+                while (true)
+                {
+                    MemoryStream memoryStream = new MemoryStream();
+                    await stream.CopyToAsync(memoryStream);
+                    faktura.PlikFaktura = memoryStream.ToArray();
+
+                    var read = await stream.ReadAsync(buffer);
+
+                    if (read == 0)
+                        break;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _ = InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task SaveLic()
+    {
+        var response = await client.PostAsJsonAsync("api/licencje", licencja);
+        var idNewLic = await response.Content.ReadAsStringAsync();//zczytywanie id nowego rekordu
+
+        if (response.IsSuccessStatusCode)
+        {
+            await client.PostAsJsonAsync($"api/uzycialic/{int.Parse(idNewLic)}", KompyId);//dodawanie wszystkich kompow do uzycia licencji
+            await Functions.DisplayNotification(notificationService, "Dodano licencje!", NotificationSeverity.Success);
+        }
+        else
+        {
+            await Functions.DisplayNotification(notificationService, "Nie udało się dodać licencji!", NotificationSeverity.Error);
+        }
+
+        licencje = await client.GetFromJsonAsync<Licencje[]>("api/licencje");
+        licencje = licencje.Where(l => l.IdFaktura == null).ToArray();
+
+        createNewLic = false;
+    }
+
+    protected async Task Save()
+    {
+        if (!faktura.ValidFaktury())
+        {
+            await Functions.DisplayNotification(notificationService, "Sprawdź czy wszystkie dane są poprawne lub zostały wprowadzone!", NotificationSeverity.Warning);
+
+            return;
+        }
+
+        if (createNewLic == true)
+        {
+            await Functions.DisplayNotification(notificationService, "Musisz najpierw zapisać licencje!", NotificationSeverity.Warning);
+
+            return;
+        }
+
+        var response = await client.PostAsJsonAsync("api/faktury", faktura);
+        var idNewFaktura = await response.Content.ReadAsStringAsync();//zczytywanie id nowego rekordu
+
+        if(response.IsSuccessStatusCode)
+        {            
+            if (faktura.IdTypFaktura != 1)//dodawanie do sprzetow faktury
+            {
+                await client.PutAsJsonAsync($"api/sprzet/{int.Parse(idNewFaktura)}", SprzetyId);
+            }
+            if (faktura.IdTypFaktura != 2)//dodawanie do licencji faktury
+            {
+                await client.PutAsJsonAsync($"api/licencje/{int.Parse(idNewFaktura)}", LicencjeId);
+            }
+
+            await Functions.DisplayNotification(notificationService, "Dodano fakture!", NotificationSeverity.Success);
+        }
+        else
+        {
+            await Functions.DisplayNotification(notificationService, "Nie udało się dodać faktuy!", NotificationSeverity.Error);
+
+            return;
+        }
+
+        NavigationManager.NavigateTo("faktury");
+    }
+
+    void Cancel()
+    {
+        NavigationManager.NavigateTo("faktury");
+    }
+}

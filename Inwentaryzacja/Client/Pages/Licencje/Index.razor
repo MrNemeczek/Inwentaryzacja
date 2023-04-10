@@ -1,0 +1,113 @@
+﻿@page "/licencje"
+
+@inject TokenHttpClientService client
+@inject IJSRuntime js
+
+@using Inwentaryzacja.Shared.Models
+@using Inwentaryzacja.Client.Core
+
+<h3>Licencje</h3>
+<br/>
+
+<div class="form-group">
+    <a class="btn btn-success" href="licencje/create"><i class="oi oi-plus"></i> Dodaj </a>
+</div>
+@if (licencje == null)
+{
+    <text>Loading...</text>
+}
+else if (licencje.Length == 0)
+{
+    <text>No Records Found.</text>
+}
+else
+{
+
+    <RadzenDataGrid Data="@licencje" TItem="Licencje" AllowSorting="true" AllowColumnResize="true"
+                AllowPaging="true" PageSize="20" class="mt-2" CellRender="@CellRender" AllowFiltering="true"
+                FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive" LogicalFilterOperator="LogicalFilterOperator.Or" 
+                FilterMode="FilterMode.Simple" Density="Density.Compact">
+        <Columns>
+
+            <RadzenDataGridColumn TItem="Licencje" Property="IdLic" Title="Id" Filterable="false" Width="50px" />
+            
+            <RadzenDataGridColumn TItem="Licencje" Property="Nazwa" Title="Nazwa licencji"  />
+            
+            <RadzenDataGridColumn TItem="Licencje" Property="Klucz" Title="Klucz licencji"  />
+
+            <RadzenDataGridColumn TItem="Licencje" Property="nazwaFaktura" Title="Nazwa faktury" />
+
+            <RadzenDataGridColumn TItem="Licencje" Property="DataWygLic" Title="Data wygaśniecia" Width="100px">
+                <Template Context="licencja">
+                    @if(licencja.DataWygLic == null)
+                    {
+                        <text></text>
+                    }
+                    else
+                    {                        
+                        @licencja.DataWygLic.Value.ToString("d")
+                    }
+                </Template>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="Licencje" Property="LiczbaLicencji" Title="Liczba licencji" Width="100px" />
+
+            <RadzenDataGridColumn TItem="Licencje" Property="IdLic" Sortable="false" Filterable="false" Width="60px">
+                <Template Context="licencja">
+                    <a class="btn btn-success oi oi-pencil mb-1" href="licencje/edit/@licencja.IdLic" />
+                </Template>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="Licencje" Property="IdLic" Sortable="false" Width="60px" Filterable="false">
+                <Template Context="licencja">
+                    <a class="btn btn-primary oi oi-eye mb-1" href="licencje/details/@licencja.IdLic" />
+                </Template>
+            </RadzenDataGridColumn>
+                
+            <RadzenDataGridColumn TItem="Licencje" Property="IdLic" Sortable="false" Filterable="false" Width="60px">
+                <Template Context="licencja">
+                    <button class="btn btn-danger oi oi-x mb-1" @onclick="@(() => Delete(licencja.IdLic))" />
+                </Template>
+            </RadzenDataGridColumn>
+           
+        </Columns>
+    </RadzenDataGrid>
+
+}
+@code {
+    Licencje[] licencje { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await client.SetToken();
+
+        licencje = await client.GetFromJsonAsync<Licencje[]>("api/licencje");
+    }
+
+    private void CellRender(DataGridCellRenderEventArgs<Licencje> args)
+    {
+        if (args.Column.Property != "IdLic" && args.Column.Sortable == true)
+        {
+            args.Attributes.Add("style", "border-style: solid; border-color: #e0e0e0;border-width: thin;");//bordery
+        }
+    }
+    async Task Delete(int licId)
+    {
+        var licencja = licencje.First(x => x.IdLic == licId);
+        if (await js.InvokeAsync<bool>("confirm", $"Na pewno chcesz usunąć {licencja.Nazwa} ({licencja.IdLic}) Record?"))
+        {
+            var response = await client.DeleteAsync($"api/licencje/{licId}");
+            
+            if (response.IsSuccessStatusCode)
+            {
+                await Functions.DisplayNotification(notificationService, "Usunieto licencje!", NotificationSeverity.Success);
+
+                licencje = await client.GetFromJsonAsync<Licencje[]>("api/licencje");
+            }
+            else
+            {
+                await Functions.DisplayNotification(notificationService, "Nie udało się usunąć licencji!", NotificationSeverity.Error);
+            }
+        }
+    }
+}

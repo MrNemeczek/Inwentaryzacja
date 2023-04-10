@@ -1,0 +1,128 @@
+﻿@page "/numery_inwentaryzacyjne_new/edit/{Id}"
+
+@using System.Text.Json
+@using Inwentaryzacja.Client.Core
+
+@inject TokenHttpClientService Http
+@inject NavigationManager NavigationManager
+
+<h3>Edytuj numer inwentaryzacyjny</h3>
+<br/>
+
+@if (spolki == null)
+{
+    <text>Loading...</text>
+}
+else
+{
+    <div class="container">
+
+        <div class="row">
+            <div class="col">
+                <EditForm Model="@numerInwentaryzacyjny">
+                    <RadzenCard>
+
+                        <label> Dla jakiej spółki ma być numer inwentaryzacyjny? </label>
+                        <br />
+
+                        <InputSelect class="col-sm-4 m-1 form-select" @bind-Value="@numerInwentaryzacyjny.IdSpolka">
+                            <option value=""></option>
+                            @foreach (Spolki spolka in spolki)
+                            {
+                                <option value="@spolka.IdSpolka">@spolka.NazwaSpolka</option>
+                            }
+                        </InputSelect>
+
+                        <br />
+                        <label> Numer inwentaryzacyjny </label>
+                        <input class="form-control w-50 mt-1" @bind="@numerInwentaryzacyjny.NumerNew" />
+
+                        <br />
+                        <input type="button" class="btn btn-success mt-3" @onclick="@GenerateNr" value="Generuj nowy numer">
+
+                    </RadzenCard>
+                </EditForm>
+            </div>
+            <div class="col" />
+        </div>
+
+        <div class="form-group mt-3">
+            <input type="button" class="btn btn-primary" @onclick="@Save" value="Save" />
+            <input type="button" class="btn" @onclick="@Cancel" value="Cancel" />
+        </div>
+
+    </div>
+}
+
+@code {
+    [Parameter]
+    public string Id { get; set; }
+
+    NumeryInwentaryzacyjneNew numerInwentaryzacyjny = new NumeryInwentaryzacyjneNew();
+    Spolki spolka = new Spolki();
+
+    NumeryInwentaryzacyjneNew[] numeryInwentaryzacyjne { get; set; }
+    Spolki[] spolki { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Http.SetToken();
+
+        numerInwentaryzacyjny = await Http.GetFromJsonAsync<NumeryInwentaryzacyjneNew>("api/nrinwentaryzacjanew/" + Id);
+        spolki = await Http.GetFromJsonAsync<Spolki[]>("api/spoleczki");
+    }
+
+    private async Task GenerateNr()
+    {
+        spolka = await Http.GetFromJsonAsync<Spolki>("api/spoleczki/" + numerInwentaryzacyjny.IdSpolka);
+
+        if (spolka.Symbol == null || spolka.Symbol.Trim() == "")
+        {
+            await Functions.DisplayNotification(notificationService, "Wybrana spółka nie posiada symbolu", NotificationSeverity.Info);
+
+            return;
+        }
+
+        try
+        {
+            var lastNr = await Http.GetFromJsonAsync<NumeryInwentaryzacyjneNew>("api/nrinwentaryzacjanew/symbol/" + spolka.Symbol);
+            numerInwentaryzacyjny.NumerNew = lastNr.NumerNew;
+
+        }
+        catch(Exception e)
+        {
+            Console.WriteLine(e.ToString());
+            await Functions.DisplayNotification(notificationService, "Coś poszło nie tak :(", NotificationSeverity.Error);
+        }
+    }
+
+    private async Task Save()
+    {
+
+        if (!numerInwentaryzacyjny.ValidNR())
+        {
+            await Functions.DisplayNotification(notificationService, "Sprawdź czy wszystkie dane są poprawne lub zostały wprowadzone!", NotificationSeverity.Warning);
+
+            return;
+        }
+        var response = await Http.PutAsJsonAsync("api/nrinwentaryzacjanew", numerInwentaryzacyjny);
+
+        if (response.IsSuccessStatusCode)
+        {
+            await Functions.DisplayNotification(notificationService, "Dodano numer inwentaryzacyjny!", NotificationSeverity.Success);
+        }
+        else
+        {
+            await Functions.DisplayNotification(notificationService, "Nie udało się dodać numeru inwentaryzacyjnego!", NotificationSeverity.Error);
+
+            return;
+        }
+
+        NavigationManager.NavigateTo("numery_inwentaryzacyjne");
+    }
+
+    private void Cancel()
+    {
+        NavigationManager.NavigateTo("numery_inwentaryzacyjne");
+    }
+}

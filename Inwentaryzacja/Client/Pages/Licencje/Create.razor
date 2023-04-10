@@ -1,0 +1,123 @@
+﻿@page "/licencje/create"
+
+@using Inwentaryzacja.Client.Core;
+@using System.Text.Json;
+
+@inject NavigationManager NavigationManager
+@inject TokenHttpClientService client
+
+<h2>Dodaj licencje</h2>
+@if (licencje == null)
+{
+    <text>Loading...</text>
+}
+else
+{
+    <div class="container">
+        <EditForm Model="@licencja">
+            <div class="row">
+                <div class="col">
+                    <RadzenCard class="mb-3">
+                        <label class="m-1"> Nazwa Programu <span style="color: red;">*</span></label>
+                        <br/>
+                        <input class="form-control m-1" @bind="@licencja.Nazwa" />
+
+                        <label class="m-1"> Klucz </label>
+                        <br/>
+                        <input class="form-control m-1" @bind="@licencja.Klucz" />
+
+                        <label class="m-1"> Liczba Licencji </label>
+                        <br/>
+                        <input type="number" class="form-control m-1" @bind="@licencja.LiczbaLicencji" />
+
+                    
+                        <label class="m-1"> Data wygaśniecia licencji </label>
+                        <br />
+                        <InputDate class="m-1" @bind-Value="@licencja.DataWygLic" />
+                        <br/>
+
+                        <label> Faktura </label>
+                        <InputSelect class="form-control" id="komps" @bind-Value="licencja.IdFaktura">
+                            <option value=""></option>
+                            @foreach (Faktury faktura in faktury)
+                            {
+                                <option value="@faktura.IdFaktura">@faktura.NazwaFaktura</option>
+                            }
+                        </InputSelect>
+                    </RadzenCard>
+
+                    <input type="button" class="btn btn-primary" @onclick="@Save" value="Save" />
+                    <input type="button" class="btn" @onclick="@Cancel" value="Cancel" />
+                </div>
+
+
+                <div class="col">
+                    <RadzenCard>
+                        <label class="m-1"> Dodaj komputer </label>
+                        <br/>
+                        <AddMultipleElements CountNumber="@kompAddNumber" Data="@komps" ItemsId="kompsId" Property="KompNazwaDomena" ID_Property="IdKomp" />
+                    </RadzenCard>
+                </div>
+
+            </div>
+        </EditForm>
+    </div>
+    
+}
+
+@code {
+    #region zmienne do dodawania komputerow
+    int kompAddNumber = 0;//przechowuje liczbe dodawanych kompow do licencji decyduje to o ilosci wyswietlanych selectow dla dodawania kompow
+
+    List<int> kompsId = new List<int>();
+    #endregion
+
+    Licencje licencja = new Licencje();
+    Licencje test = new Licencje();
+
+    Licencje[] licencje { get; set; }
+    Faktury[] faktury { get; set; }
+    Komp[] komps { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await client.SetToken();
+
+        licencje = await client.GetFromJsonAsync<Licencje[]>("api/licencje");
+        faktury = await client.GetFromJsonAsync<Faktury[]>("api/faktury");
+        faktury = faktury.Where(f => f.IdTypFaktura == 1).ToArray();//wybranie faktur z typem program
+        komps = await client.GetFromJsonAsync<Komp[]>("api/komp");
+    }
+
+    protected async Task Save()
+    {
+        if(!licencja.ValidLicence())
+        {
+            await Functions.DisplayNotification(notificationService, "Sprawdź czy wszystkie dane są poprawne lub zostały wprowadzone!", NotificationSeverity.Warning);
+
+            return;
+        }
+
+        var response = await client.PostAsJsonAsync("api/licencje", licencja);
+        var idNewLic = await response.Content.ReadAsStringAsync();//zczytywanie id nowego rekordu
+
+        if (response.IsSuccessStatusCode)
+        {
+            await client.PostAsJsonAsync($"api/uzycialic/{int.Parse(idNewLic)}", kompsId);//dodawanie wszystkich kompow do uzycia licencji
+            
+            await Functions.DisplayNotification(notificationService, "Dodano licencje!", NotificationSeverity.Success);
+        }
+        else
+        {
+            await Functions.DisplayNotification(notificationService, "Nie udało się dodać licencji!", NotificationSeverity.Error);
+
+            return;
+        }
+
+        NavigationManager.NavigateTo("licencje");
+    }
+    void Cancel()
+    {
+        NavigationManager.NavigateTo("licencje");
+    }
+}

@@ -1,0 +1,166 @@
+﻿@page "/licencje/edit/{Id}"
+
+@using Inwentaryzacja.Client.Core;
+@using System;
+
+@inject TokenHttpClientService Http
+@inject NavigationManager NavigationManager
+@inject IJSRuntime js
+
+<h2>Edytuj licencje</h2>
+
+@if (faktury == null)
+{
+    <text>Loading...</text>
+}
+else
+{
+    <div class="container">
+        <EditForm Model="@licencja">
+            <div class="row">
+                <div class="col">
+                    <RadzenCard class="mb-3">
+                        <label class="m-1"> Nazwa Programu <span style="color: red;">*</span></label>
+                        <br/>
+                        <input class="form-control m-1" @bind="@licencja.Nazwa" />
+
+                        <label class="m-1"> Klucz </label>
+                        <br/>
+                        <input class="form-control m-1" @bind="@licencja.Klucz" />
+
+                        <label class="m-1"> Liczba Licencji </label>
+                        <br/>
+                        <input type="number" class="form-control m-1" @bind="@licencja.LiczbaLicencji" />
+
+                    
+                        <label class="m-1"> Data wygaśniecia licencji </label>
+                        <br />
+                        <InputDate class="m-1" @bind-Value="@licencja.DataWygLic" />
+                        <br/>
+
+                        <label> Faktura </label>
+                        <InputSelect class="form-control" id="komps" @bind-Value="licencja.IdFaktura">
+                            <option value=""></option>
+                            @foreach (Faktury faktura in faktury)
+                            {
+                                <option value="@faktura.IdFaktura">@faktura.NazwaFaktura</option>
+                            }
+                        </InputSelect>
+                    </RadzenCard>
+
+                    <input type="button" class="btn btn-primary" @onclick="@Save" value="Save" />
+                    <input type="button" class="btn" @onclick="@Cancel" value="Cancel" />
+
+                </div>  
+                
+                <div class="col">
+                    <RadzenCard>
+                        <label class="m-1"> Dodaj komputer </label>
+                        <br />
+                        <AddMultipleElements CountNumber="@kompAddNumber" Data="@komps" ItemsId="kompsId" Property="KompNazwaDomena" ID_Property="IdKomp"/>                        
+
+                        @if (uzyciaLicencji != null) @* wyswietlanie juz dodanych komputerow do licencji *@
+                        {
+                            <br/>
+                            foreach (UzyciaLicencji uzycieLicencji in uzyciaLicencji)
+                            {
+                                <label class="w-75 m-1">@komps.First(k => k.IdKomp == uzycieLicencji.IdKomp).KompNazwaDomena</label>
+                                <button class="btn btn-danger m-1" @onclick="@(() => DeleteUzycieLic(uzycieLicencji))">X</button>
+                                <br />
+                            }
+                        }
+                    </RadzenCard>
+                </div>
+            </div>
+        </EditForm>
+    </div>
+}
+@code {
+    #region zmienne do dodawania komputerow
+    int kompAddNumber = 0;//przechowuje liczbe dodawanych kompow do licencji decyduje to o ilosci wyswietlanych selectow dla dodawania kompow
+
+    List<int> kompsId = new List<int>();
+    #endregion
+
+    [Parameter]
+    public string Id { get; set; }
+
+    Faktury[] faktury { get; set; }
+    Komp[] komps { get; set; }
+    UzyciaLicencji[] uzyciaLicencji { get; set; }
+
+    Licencje licencja = new Licencje();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Http.SetToken();
+
+        licencja = await Http.GetFromJsonAsync<Licencje>("api/licencje/" + Id);
+        faktury = await Http.GetFromJsonAsync<Faktury[]>("api/faktury");
+        faktury = await Http.GetFromJsonAsync<Faktury[]>("api/faktury/typfaktury/" + "1");//wybranie faktur z typem program
+        komps = await Http.GetFromJsonAsync<Komp[]>("api/komp");
+        uzyciaLicencji = await Http.GetFromJsonAsync<UzyciaLicencji[]>("api/uzycialic/licencja/" + Id);
+    }
+
+    //TODO: sprobowac zrobic na typie generycznym i wrzucic do Core/Functions
+    private async Task DeleteUzycieLic(UzyciaLicencji uzycieLicencji)
+    {
+        uzyciaLicencji = uzyciaLicencji.Where(ul => ul != uzycieLicencji).ToArray();
+
+        if (await js.InvokeAsync<bool>("confirm", $"Na pewno chcesz usunąć ({uzycieLicencji.IdUzyciaLicencji}) Record?"))
+        {
+            var response = await Http.DeleteAsync($"api/uzycialic/{uzycieLicencji.IdUzyciaLicencji}");
+
+            if(response.IsSuccessStatusCode)
+            {
+                await Functions.DisplayNotification(notificationService, "usunięte!", NotificationSeverity.Success);
+            }
+            else
+            {
+                await Functions.DisplayNotification(notificationService, "Nie udało się usunąć!", NotificationSeverity.Error);
+            }
+        }
+    }
+
+    protected async Task Save()
+    {
+        if (!licencja.ValidLicence())
+        {
+            await Functions.DisplayNotification(notificationService, "Sprawdź czy wszystkie dane są poprawne lub zostały wprowadzone!", NotificationSeverity.Warning);
+
+            return;
+        }
+
+        foreach (int kompId in kompsId)
+        {
+            UzyciaLicencji uzyciaLicencji = new UzyciaLicencji() { IdKomp = kompId, IdLic = licencja.IdLic };
+            var error = await Http.PostAsJsonAsync("api/uzycialic", uzyciaLicencji);
+
+            if (!error.IsSuccessStatusCode)
+            {
+                var error_text = await error.Content.ReadAsStringAsync();
+                Console.WriteLine("error: " + error_text.ToString());//wyswietlic komunikat ze byla proba dodania duplikatow
+            }
+        }
+        var response = await Http.PutAsJsonAsync("api/licencje", licencja);
+
+        if (response.IsSuccessStatusCode)
+        {
+            await Functions.DisplayNotification(notificationService, "Zmodyfikowano licencje!", NotificationSeverity.Success);
+        }
+        else
+        {
+            await Functions.DisplayNotification(notificationService, "Nie udało się zmodyfikować licencji!", NotificationSeverity.Error);
+
+            return;
+        }
+
+        NavigationManager.NavigateTo("licencje");
+
+    }
+
+    void Cancel()
+    {
+        NavigationManager.NavigateTo("licencje");
+    }
+}

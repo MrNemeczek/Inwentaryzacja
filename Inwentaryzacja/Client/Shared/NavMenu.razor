@@ -1,0 +1,239 @@
+﻿@inject TokenHttpClientService client
+@inject IJSRuntime js
+@inject AuthenticationStateProvider authenticationState
+
+@attribute [AllowAnonymous]
+
+@using Inwentaryzacja.Shared.Models
+@using System.Timers
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.WebAssembly.Authentication
+
+<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="">Inwentaryzacja</a>     
+        <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+    </div>
+</div>
+
+@*<AuthorizeView>*@
+    @*<Authorized>  *@
+        @*<div class="@NavMenuCssClass" @onclick="ToggleNavMenu">*@
+
+            <nav class="flex-column">
+                 <div class="nav-item px-3">
+                    <NavLink class="nav-link" id="dodawanie-dropdown-btn" href="javascript:void(0)">
+                        <span class="oi oi-plus" aria-hidden="true"></span> Dodawanie
+                    </NavLink>
+
+                    <div class="dropdown-content" id="dodawanie-dropdown">
+                        <NavLink class="nav-link" id="test" href="komp/create">
+                            <span class="oi oi-monitor" aria-hidden="true"></span> Dodaj komputer
+                        </NavLink>
+
+                        <NavLink class="nav-link" href="spolki/create">
+                            <span class="oi oi-people" aria-hidden="true"></span> Dodaj spółke
+                        </NavLink>
+
+                        <NavLink class="nav-link" href="oddzialy/create">
+                            <span class="oi oi-home" aria-hidden="true"></span> Dodaj oddział
+                        </NavLink>
+
+                        <NavLink class="nav-link" href="sprzet/create">
+                            <span class="oi oi-camera-slr" aria-hidden="true"></span> Dodaj sprzęt
+                        </NavLink>
+
+                        <NavLink class="nav-link" href="numery_inwentaryzacyjne/create">
+                            <span class="oi oi-bold" aria-hidden="true"></span> Dodaj numer
+                        </NavLink>
+
+                        <NavLink class="nav-link" href="licencje/create">
+                           <span class="oi oi-shield" aria-hidden="true"></span> Dodaj licencje
+                        </NavLink>
+
+                        <NavLink class="nav-link" href="faktury/create">
+                            <span class="oi oi-book" aria-hidden="true"></span> Dodaj fakture
+                        </NavLink>
+                    </div>
+
+                 </div>
+
+                 @*komputery*@
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" id="komputery-dropdown-btn" href="javascript:void(0)">
+                        <span class="oi oi-monitor" aria-hidden="true"></span> Komputery
+                    </NavLink>
+
+                    <div class="dropdown-content" id="komputery-dropdown">
+                        <NavLink class="nav-link" id="test" href="komp">
+                            <span class="oi oi-eye" aria-hidden="true"></span> Pokaż kompy
+                        </NavLink>
+
+                        <NavLink class="nav-link" href="app">
+                            <span class="oi oi-list" aria-hidden="true"></span> Aplikacje
+                        </NavLink>
+                    </div>
+
+                </div>
+
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" id="admin-dropdown-btn" href="javascript:void(0)">
+                        <span class="oi oi-cog" aria-hidden="true"></span> Administracja
+                    </NavLink>
+
+                    <div class="dropdown-content" id="administracja-dropdown">
+                        <NavLink class="nav-link" href="spolki">
+                            <span class="oi oi-people" aria-hidden="true"></span> Spółki
+                        </NavLink>
+
+                        <NavLink class="nav-link" href="oddzialy">
+                            <span class="oi oi-home" aria-hidden="true"></span> Oddziały
+                        </NavLink>
+
+                    </div>
+
+                </div>
+
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" id="inw-dropdown-btn" href="javascript:void(0)">
+                        <span class="oi oi-tablet" aria-hidden="true"></span> Inwentaryzacja
+                    </NavLink>
+
+                    <div class="dropdown-content" id="inw-dropdown">
+                        <NavLink class="nav-link" href="sprzet">
+                            <span class="oi oi-camera-slr" aria-hidden="true"></span> Sprzęt
+                        </NavLink>
+
+                        <NavLink class="nav-link" href="numery_inwentaryzacyjne">
+                            <span class="oi oi-bold" aria-hidden="true"></span> Numery
+                        </NavLink>
+                    </div>
+
+                </div>
+
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="licencje">
+                        <span class="oi oi-shield" aria-hidden="true"></span> Licencje
+                    </NavLink>
+                </div>
+
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="faktury">
+                        <span class="oi oi-book" aria-hidden="true"></span> Faktury
+                    </NavLink>
+                </div>
+
+                <div class="nav-item px-3">
+                    <NavLink class="nav-link" href="podsumowanie">
+                        <span class="oi oi-graph" aria-hidden="true"></span> Podsumowanie
+                    </NavLink>
+                </div>
+                
+                @*<div class="nav-item px-3">
+                    <NavLink class="nav-link" href="kalendarz">
+                        <span class="oi oi-calendar" aria-hidden="true"></span> Kalendarz
+                    </NavLink>
+                </div>*@
+                @if ((appkomps != null && appkomps.Count() != 0 && appkomps.Length != 0) || (licencje != null && licencje.Count() != 0 && licencje.Length != 0))
+                {
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="alerts">
+                            <span class="oi oi-bell" aria-hidden="true"></span> Powiadomienia
+                        </NavLink>
+                    </div>
+                }
+            </nav>        
+        @*</div>*@
+@*    </Authorized>*@
+@*</AuthorizeView>*@
+
+@code {
+    #if DEBUG
+    bool debug = true;
+    #else
+    bool debug = false;
+    #endif
+
+    IJSObjectReference? module;
+
+    private bool collapseNavMenu = true;
+
+    private Timer timer;//TODO: sprawdzic czy potrzebne
+
+    private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
+
+    Appkomp[] appkomps { get; set; }
+    Licencje[] licencje { get; set; }
+
+    private void ToggleNavMenu()
+    {
+        collapseNavMenu = !collapseNavMenu;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        module = await js.InvokeAsync<IJSObjectReference>("import", "./test.js");
+        await module.InvokeAsync<object>("dropDown", "dodawanie-dropdown", "dodawanie-dropdown-btn");
+        await module.InvokeAsync<object>("dropDown", "komputery-dropdown", "komputery-dropdown-btn");
+        await module.InvokeAsync<object>("dropDown", "administracja-dropdown", "admin-dropdown-btn");
+        await module.InvokeAsync<object>("dropDown", "inw-dropdown", "inw-dropdown-btn");
+
+        await CheckAlerts();
+    }
+
+    private async Task CheckAlerts()
+    {
+        while (true)
+        {
+            var authState = await authenticationState.GetAuthenticationStateAsync();
+
+            if (authState.User.Identity.IsAuthenticated || debug)
+            {
+                try
+                {
+                    await client.SetToken();
+
+                    var closedAppKomps = await module.InvokeAsync<string>("ReadCookie", "CLOSED_APPKOMPS");//czytanie usunietych powiadomien appKomps
+                    var closedLic = await module.InvokeAsync<string>("ReadCookie", "CLOSED_LIC");//czytanie usunietych powiadomien licencji
+
+                    //sprawdzanie AppKomps
+                    if(closedAppKomps != null && closedAppKomps != "")
+                    {
+                        appkomps = await client.GetFromJsonAsync<Appkomp[]>("api/alert/appkomp/" + closedAppKomps);
+                    }
+                    else
+                    {
+                        appkomps = await client.GetFromJsonAsync<Appkomp[]>("api/alert");
+                    }
+
+                    //sprawdzanie licencji
+                    if (closedLic != null && closedLic != "")
+                    {
+                        licencje = await client.GetFromJsonAsync<Licencje[]>($"api/licencje/wygasajace/{30}/{closedLic}");
+                    }
+                    else
+                    {
+                        licencje = await client.GetFromJsonAsync<Licencje[]>("api/licencje/wygasajace/" + 30);
+                    }
+
+
+                }
+                catch (HttpRequestException e)
+                {
+                    if (e.StatusCode != System.Net.HttpStatusCode.Unauthorized)
+                    {
+                        Console.WriteLine($"NavMenu \n Exception: {e.ToString()}");
+                    }
+                }
+
+                InvokeAsync(() => StateHasChanged());
+            }
+
+            await Task.Delay(5000);
+        }
+        
+    }
+
+}

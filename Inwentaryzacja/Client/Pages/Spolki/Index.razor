@@ -1,0 +1,87 @@
+﻿@page "/spolki"
+
+@inject TokenHttpClientService client
+@inject IJSRuntime js
+
+@using Inwentaryzacja.Client.Core
+
+<h3>Spółki</h3>
+<br/>
+<div class="form-group">
+    <a class="btn btn-success" href="spolki/create"><i class="oi oi-plus"></i> Create New</a>
+</div>
+@if (spolki == null)
+{
+    <text>Loading...</text>
+}
+else if (spolki.Length == 0)
+{
+    <text>No Records Found.</text>
+}
+else
+{
+    <RadzenDataGrid Data="@spolki" TItem="Spolki" AllowSorting="true" AllowColumnResize="true" AllowPaging="true" PageSize="20"
+                class="mt-2" CellRender="@CellRender" Density="Density.Compact">
+        <Columns>
+            
+            <RadzenDataGridColumn TItem="Spolki" Property="IdSpolka" Title="Id" Width="50px"  />
+            
+            <RadzenDataGridColumn TItem="Spolki" Property="NazwaSpolka" Title="Nazwa Społki"  />
+
+            <RadzenDataGridColumn TItem="Spolki" Property="NIP" Title="NIP" />
+
+            <RadzenDataGridColumn TItem="Spolki" Property="Symbol" Title="Symbol" />
+
+            <RadzenDataGridColumn TItem="Spolki" Property="IdSpolka" Sortable="false" Width="60px" >
+                <Template Context="spolka">
+                    <a class="btn btn-success oi oi-pencil mb-1" href="spolki/edit/@spolka.IdSpolka" />
+                </Template>
+            </RadzenDataGridColumn>
+            
+            <RadzenDataGridColumn TItem="Spolki" Property="IdSpolka" Sortable="false" Width="60px">
+                <Template Context="spolka">
+                    <button class="btn btn-danger oi oi-x mb-1" @onclick="@(() => Delete(spolka.IdSpolka))"/>
+                </Template>
+            </RadzenDataGridColumn>
+        
+        </Columns>
+    </RadzenDataGrid>
+}
+
+@code {
+    Spolki[] spolki { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await client.SetToken();
+
+        spolki = await client.GetFromJsonAsync<Spolki[]>("api/spoleczki");
+    }
+    private void CellRender(DataGridCellRenderEventArgs<Spolki> args)
+    {
+        if (args.Column.Property != "IdSpolka" && args.Column.Sortable == true)
+        {
+            args.Attributes.Add("style", "border-style: solid; border-color: #e0e0e0;border-width: thin;");//bordery
+        }
+    }
+    async Task Delete(int spolkaId)
+    {
+        var spolka = spolki.First(x => x.IdSpolka == spolkaId);
+
+        if (await js.InvokeAsync<bool>("confirm", $"Na pewno chcesz usunąć {spolka.NazwaSpolka} ({spolka.IdSpolka}) Record?"))
+        {
+            var response = await client.DeleteAsync($"api/spoleczki/{spolkaId}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                await Functions.DisplayNotification(notificationService, "Usunieto spółke!", NotificationSeverity.Success);
+
+                spolki = await client.GetFromJsonAsync<Spolki[]>("api/spoleczki");
+            }
+            else
+            {
+                await Functions.DisplayNotification(notificationService, "Nie udało się usunąć spółki!", NotificationSeverity.Error);
+            }
+        }
+    }
+}

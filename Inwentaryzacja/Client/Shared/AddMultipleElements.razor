@@ -1,0 +1,109 @@
+﻿@using Inwentaryzacja.Client.Core
+@using Inwentaryzacja.Shared.Models
+@using System;
+@using System.Text.RegularExpressions;
+
+@typeparam TItem
+
+<input type="button" class="btn btn-success m-1" value="Dodaj" @onclick="@(() => {countNumber++; itemId.Add(0);})" />
+
+@if (countNumber > 0)
+{
+    <button class="btn btn-danger" @onclick="@(() => Functions.DeleteFromList(ref itemId, ref countNumber))">X</button>
+
+    for (int i = 0; i < countNumber; i++)
+    {
+        selectID = "i=" + i.ToString();
+
+        <select class="col-sm-4 m-1 form-select" @onchange="@((ChangeEventArgs args) => SelectChanged(args, ref itemId))">
+            <option value=""></option>
+            @foreach (TItem item in data)
+            {
+                <option value="@(selectID + "ID=" + GetItemID(item))">@GetItemValue(item)</option>
+            }
+        </select>
+    }
+}
+
+@code {
+    [Parameter]
+    public int CountNumber { get; set; } //przechowuje liczbe dodawanych itemow
+
+    [Parameter]
+    public List<int> ItemsId { get; set; }//lista ID itemow do dodania
+
+    [Parameter]
+    public IEnumerable<TItem> Data { get; set; }//lista/tablica danych do wyswietlenia
+
+    [Parameter]
+    public string Property { get; set; }//wlasciwosc do wyswietlenia
+
+    [Parameter]
+    public string ID_Property { get; set; }//wlasciwosc do ID w danej klasie
+
+    private int countNumber;
+
+    private string selectID; //ID selectu zeby bylo wiadomo w ktorym selectcie zmieniono wartosc
+
+    private List<int> itemId;
+
+    private IEnumerable<TItem> data;
+
+    //ogarnac jak to dziala ze do prywatnych elementow sa przypisywane wartosci a mimo to dziala 
+    protected override async Task OnInitializedAsync()
+    {
+        countNumber = CountNumber;
+        itemId = ItemsId;
+        data = Data;
+    }
+
+    private void SelectChanged(ChangeEventArgs e, ref List<int> ListId)
+    {
+        int select_id = GetValue(e.Value.ToString(), "i=");
+        int item_id = GetValue(e.Value.ToString(), "ID=");
+
+        ListId[select_id] = item_id;
+    }
+
+    /// <summary>
+    /// metoda wyszukuje liczbe int w <paramref name="values"/> po wystapieniu ciagu <paramref name="searchValue"/>
+    /// </summary>
+    /// <param name="values"> string w ktorym wyszukiwana jest wartosc int </param>
+    /// <param name="searchValue"> string po ktorym ma wystapic wartosc int </param>
+    /// <returns> liczbe int ktora byla wyszukana w <paramref name="values"/> </returns>
+    private int GetValue(in string values, string searchValue)
+    {
+        string regex = searchValue + "(\\d+)";
+        Match match = Regex.Match(values, regex);
+        string foundedValue = match.Groups[1].Value;
+
+
+        return Int32.Parse(foundedValue);
+    }
+
+    /// <summary>
+    /// pobiera wartosc na podstawie Property z <paramref name="item"/>
+    /// </summary>
+    /// <param name="item"> item </param>
+    /// <returns> wartosc Property w <paramref name="item"/> </returns>
+    private string GetItemValue(TItem item)
+    {
+        //ogarnac na githubie Radzen.Blazor jak udalo im sie wydobyc property
+        var value = PropertyAccess.GetValue(item, Property);
+
+        return value.ToString();
+    }
+
+    /// <summary>
+    /// pobiera wartosc na podstawie ID_Property z <paramref name="item"/>
+    /// </summary>
+    /// <param name="item"> item</param>
+    /// <returns> wartosc ID w <paramref name="item"/> </returns>
+    private int GetItemID(TItem item)
+    {
+        //ogarnac na githubie Radzen.Blazor jak udalo im sie wydobyc property
+        var value = PropertyAccess.GetValue(item, ID_Property);
+
+        return Convert.ToInt32(value);
+    }
+}

@@ -1,0 +1,83 @@
+﻿@page "/appkomp/{appid}/{kompid}"
+
+@inject TokenHttpClientService client
+@inject NavigationManager NavigationManager
+
+@using Inwentaryzacja.Shared.Models;
+
+<br>
+@if (appkomps == null)
+{
+    <text>Loading...</text>
+}
+else if (appkomps.Length == 0)
+{
+    <text>No Records Found.</text>
+}
+else
+{
+    <div class="row">
+        <div class="col-md-4">
+            <div class="form-group">
+                <input type="button" class="btn btn-primary mt-3" @onclick="@Cancel" value="Powrót" />
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <RadzenDataGrid Data="@appkomps" TItem="Appkomp" AllowSorting="true" AllowColumnResize="true" AllowPaging="true" PageSize="20"
+                    class="mt-2" CellRender="@CellRender" Density="Density.Compact">
+            <Columns>
+
+                <RadzenDataGridColumn TItem="Appkomp" Property="nazwaApp" Title="Aplikacja" />
+
+                <RadzenDataGridColumn TItem="Appkomp" Property="kompNazwaDomena" Title="Komputer" />
+
+            </Columns>
+        </RadzenDataGrid>
+    </div>
+
+}
+@code {
+    [Parameter]
+    public string appid { get; set; }
+    [Parameter]
+    public string kompid { get; set; }
+
+    Appkomp[] appkomps { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await client.SetToken();
+        appkomps = await client.GetFromJsonAsync<Appkomp[]>("api/appkomp/" + appid + "/" + kompid);
+    }
+
+    private void CellRender(DataGridCellRenderEventArgs<Appkomp> args)
+    {
+        string style = null;
+        if (args.Column.Property != "IdApp" && args.Column.Sortable == true)
+        {
+            style += "border-style: solid; border-color: #e0e0e0;border-width: thin;";
+        }
+        //if(apps.FirstOrDefault(a => a.IdApp == args.Data.IdApp).Blacklist == 1)
+        //{  
+        if (args.Data.blacklist == 1)
+        {
+            style += "background-color: #e46774;";//jasny czerwony
+        }
+
+        args.Attributes.Add("style", style);
+    }
+
+    private async Task Cancel()
+    {
+        if(int.Parse(appid) != 0)
+        {
+            NavigationManager.NavigateTo("app");
+        }
+        else
+        {        
+            NavigationManager.NavigateTo("komp");
+        }
+    }
+
+}

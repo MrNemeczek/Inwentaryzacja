@@ -1,0 +1,241 @@
+﻿@page "/sprzet"
+
+@inject TokenHttpClientService client
+@inject IJSRuntime js
+@inject ExportService export
+
+@using Inwentaryzacja.Shared.Models
+@using Inwentaryzacja.Client.Core
+@using Inwentaryzacja.Shared.Models.Services
+
+<h3>Sprzęt</h3>
+
+<div class="form-group">
+    <a class="btn btn-success" href="sprzet/create"><i class="oi oi-plus"></i> Dodaj nowy</a>
+</div>
+
+@if (sprzety == null)
+{
+    <text>Loading...</text>
+}
+else if (sprzety.Length == 0)
+{
+    <text>Brak Danych</text>
+}
+else
+{
+    <div class="container">
+        
+        <div class="row">
+
+            <div class="col m-1">
+                
+                <label>Oddział</label>
+
+                <select class="col-sm-4 m-1 form-select" @onchange="@((ChangeEventArgs args) => SelectChanged(args, "oddzialNazwa"))">
+                    <option value=""></option>
+                    @foreach (Oddzialy oddzial in oddzialy)
+                    {
+                        <option value="@oddzial.OddzialNazwa">@oddzial.OddzialNazwa</option>
+                    }
+                </select>
+            </div>          
+
+            <div class="col m-1">
+
+                <label>Stan</label>
+
+                <select class="col-sm-4 m-1 form-select" @onchange="@((ChangeEventArgs args) => SelectChanged(args, "stan"))">
+                    <option value=""></option>
+                        @foreach (StanSprzet stan in stanySprzetow)
+                        {
+                            <option value="@stan.Stan">@stan.Stan</option>
+                        }
+                </select>
+
+            </div>
+
+            <div class="col m-1">
+
+                <label>Typ</label>
+
+                <select class="col-sm-4 m-1 form-select" @onchange="@((ChangeEventArgs args) => SelectChanged(args, "typ"))">
+                    <option value=""></option>
+                    @foreach (TypSprzet typ in typySprzetow)
+                    {
+                        <option value="@typ.Typ">@typ.Typ</option>
+                    }
+                </select>
+            </div>
+        </div>
+        <div class="row w-25">
+            <div class="col-sm">
+                <button class="btn btn-success" @onclick="@(args => Export("excel"))"> Eksportuj do Excela</button>
+            </div>
+        </div>
+    </div>
+
+        <div class="container" style="max-width: calc(85vw - 50px);">
+            <RadzenDataGrid Data="@sprzety" TItem="Sprzet" AllowSorting="true" AllowFiltering="true" 
+                FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive" LogicalFilterOperator="LogicalFilterOperator.And"
+                FilterMode="FilterMode.Simple" AllowColumnResize="true"  class="mt-2" AllowPaging="true" PageSize="20"
+                @ref="grid" CellRender="@CellRender" HeaderCellRender="@HeaderCellRender" Density="Density.Compact" >
+            
+                <Columns>
+
+                    <RadzenDataGridColumn TItem="Sprzet" Property="IdSprzet" Title="Id" Width="50px" Filterable="false"/>
+                
+                    <RadzenDataGridColumn TItem="Sprzet" Property="NazwaSprzet" Title="Nazwa"  />
+
+                    <RadzenDataGridColumn TItem="Sprzet" Property="Marka" Title="Marka" />
+
+                    <RadzenDataGridColumn TItem="Sprzet" Property="Model" Title="Model" />
+                
+                    <RadzenDataGridColumn TItem="Sprzet" Property="NumerSeryjny" Title="Numer seryjny"  />
+
+                    <RadzenDataGridColumn TItem="Sprzet" Property="numer" Title="Numer inwentaryzacyjny">
+                        <Template Context="sprzet">
+                            @if(sprzet.IdNrInwentaryzacyjny != null)
+                            {
+                                @sprzet.numer
+                            }
+                            else if(sprzet.IdNrInwentaryzacyjnyNew != null)
+                            {
+                                @sprzet.numerNew
+                            }
+                    </Template>
+                    </RadzenDataGridColumn>
+
+                    <RadzenDataGridColumn TItem="Sprzet" Property="nazwaFaktura" Title="Nazwa faktury" />
+
+                    <RadzenDataGridColumn TItem="Sprzet" Property="typ" Title="Typ sprzętu" />
+
+                    <RadzenDataGridColumn TItem="Sprzet" Property="stan" Title="Stan" />
+
+                    <RadzenDataGridColumn TItem="Sprzet" Property="oddzialNazwa" Title="Oddział" />
+
+                    <RadzenDataGridColumn TItem="Sprzet" Property="nazwaSpolka" Title="Spółka" />
+
+                    <RadzenDataGridColumn TItem="Sprzet" Property="Comment" Title="Uwagi" />
+
+                    <RadzenDataGridColumn TItem="Sprzet" Property="IdSprzet" Sortable="false" Width="60px" Filterable="false">
+                        <Template Context="sprzet">
+                            <a class="btn btn-success oi oi-pencil mb-1" href="sprzet/edit/@sprzet.IdSprzet" />
+                        </Template>
+                    </RadzenDataGridColumn>
+
+                    <RadzenDataGridColumn TItem="Sprzet" Property="IdSprzet" Sortable="false" Width="60px" Filterable="false">
+                        <Template Context="sprzet">
+                            <button class="btn btn-danger oi oi-x mb-1" @onclick="@(() => Delete(sprzet.IdSprzet))"/>
+                        </Template>
+                    </RadzenDataGridColumn>
+            
+                </Columns>
+            </RadzenDataGrid>
+        </div>
+@*    </div>*@
+}
+
+
+@code {
+    RadzenDataGrid<Sprzet> grid;
+
+    Sprzet sprzet = new Sprzet();
+
+    Sprzet[] sprzety { get; set; }
+    Sprzet[] allsprzety { get; set; }
+    Oddzialy[] oddzialy { get; set; }
+    TypSprzet[] typySprzetow { get; set; }
+    StanSprzet[] stanySprzetow { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await client.SetToken();
+
+        allsprzety = await client.GetFromJsonAsync<Sprzet[]>("api/sprzet");
+        sprzety = allsprzety;
+        oddzialy = await client.GetFromJsonAsync<Oddzialy[]>("api/oddzialy");
+        typySprzetow = await client.GetFromJsonAsync<TypSprzet[]>("api/typsprzet");
+        stanySprzetow = await client.GetFromJsonAsync<StanSprzet[]>("api/stansprzet");
+    }
+
+    private void CellRender(DataGridCellRenderEventArgs<Sprzet> args)
+    {
+        string style = null;
+        if (args.Column.Property != "IdKomp" && args.Column.Sortable == true)
+        {
+            style += "border-style: solid; border-color: #e0e0e0;border-width: thin;";//bordery
+        }
+        switch (args.Data.IdStan)
+        {
+            case 2:
+                style += "background-color: #68e3aa";//jasny zielony
+                break;
+            case 3:
+            case 4:
+                style += "background-color: #e46774";//jasny czerwony
+                break;
+        }
+
+        args.Attributes.Add("style", style);
+    }
+
+    private void HeaderCellRender(DataGridCellRenderEventArgs<Sprzet> args)
+    {
+        string style = null;
+        if (args.Column.Sortable == true)
+        {
+            style += "border-style: solid; border-color: #e0e0e0;border-width: thin;";
+        }
+        if (args.Column.Property == "IdTypSprzet")
+        {
+            style += "background-color: #e46774;";
+        }
+        args.Attributes.Add("style", style);
+    }
+
+    private async Task Delete(int sprzetId)
+    {
+        var sprzet = sprzety.First(s => s.IdSprzet == sprzetId);
+
+        if (await js.InvokeAsync<bool>("confirm", $"Na pewno chcesz usunąć {sprzet.NazwaSprzet} ({sprzet.IdSprzet}) Record?"))
+        {
+            var response = await client.DeleteAsync($"api/sprzet/{sprzetId}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                await Functions.DisplayNotification(notificationService, "Usunieto sprzęt!", NotificationSeverity.Success);
+
+                allsprzety = await client.GetFromJsonAsync<Sprzet[]>("api/sprzet");
+                sprzety = allsprzety;
+            }
+            else
+            {
+                await Functions.DisplayNotification(notificationService, "Nie udało się usunąć sprzętu!", NotificationSeverity.Error);
+            }
+        }
+    }
+
+    private void Export(string type)
+    {
+        export.Export("sprzet", type, new Query()
+            {
+                OrderBy = grid.Query.OrderBy,
+                Filter = grid.Query.Filter,
+                Select = string.Join(",", grid.ColumnsCollection.Where(c => c.GetVisible())
+                                .Select(c => c.Property.Contains(".") ? $"{c.Property} as {c.Property.Replace(".", "_")}" : c.Property))
+            });
+    }
+
+    private void SelectChanged(ChangeEventArgs e, string columnProperty)
+    {
+        var column = grid.ColumnsCollection.Where(c => c.Property == columnProperty).FirstOrDefault();
+
+        if(column != null)
+        {
+            column.FilterValue = e.Value.ToString();
+            column.FilterOperator = FilterOperator.Contains;
+            grid.Reload();
+        }
+    }
+}

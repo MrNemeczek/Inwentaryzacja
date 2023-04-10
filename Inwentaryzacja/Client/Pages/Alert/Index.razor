@@ -1,0 +1,179 @@
+﻿@page "/alerts"
+
+@inject TokenHttpClientService client
+@inject IJSRuntime js
+
+@using App = Inwentaryzacja.Shared.Models.App;
+
+<h3>Powiadomienia</h3>
+
+@if(appkomps == null)
+{
+    <text>Loading...</text>
+}
+else
+{
+    <div class="container">
+        <div class="row">
+            <div class="col">
+                @*aplikacje blacklist*@
+                <RadzenDataGrid Data="@appkomps" TItem="Appkomp" AllowSorting="true" AllowColumnResize="true" AllowPaging="true" PageSize="20"
+                            class="mt-2" CellRender="@CellRender" Density="Density.Compact">
+                    <Columns>
+
+                        <RadzenDataGridColumn TItem="Appkomp" Property="kompNazwaDomena" Title="Komputer" />
+
+                        <RadzenDataGridColumn TItem="Appkomp" Property="nazwaApp" Title="Aplikacja" />
+
+                        <RadzenDataGridColumn TItem="Appkomp" Property="ip" Title="IP"/>
+
+                        <RadzenDataGridColumn TItem="Appkomp" Property="oddzialNazwa" Title="Oddział" />
+
+                        <RadzenDataGridColumn TItem="Appkomp" Property="IdAppkomp" Sortable="false" Width="60px" Filterable="false">
+                            <Template Context="appkomp">
+                                <button class="btn btn-danger oi oi-x mb-1" @onclick="@(() => AddCookie(appkomp.IdAppkomp, "CLOSED_APPKOMPS"))" />
+                            </Template>
+                        </RadzenDataGridColumn>
+
+                    </Columns>
+                </RadzenDataGrid>
+            </div>
+            <div class="col">
+                @*licencje zblizajace sie do wygasniecia*@
+                <RadzenDataGrid Data="@licencje" TItem="Licencje" AllowSorting="true" AllowColumnResize="true" AllowPaging="true" PageSize="20"
+                            CellRender="@CellRenderLic" Density="Density.Compact" class="mt-2">
+                    <Columns>
+                        <RadzenDataGridColumn TItem="Licencje" Property="IdLic" Title="Id" Filterable="false" Width="50px" />
+                        <RadzenDataGridColumn TItem="Licencje" Property="Nazwa" Title="Nazwa licencji" />
+                        <RadzenDataGridColumn TItem="Licencje" Property="Klucz" Title="Klucz licencji" />
+
+                        <RadzenDataGridColumn TItem="Licencje" Property="nazwaFaktura" Title="Nazwa faktury" />
+
+                        <RadzenDataGridColumn TItem="Licencje" Property="DataWygLic" Title="Data wygaśniecia" Width="100px">
+                            <Template Context="licencja">
+                                @licencja.DataWygLic.Value.ToString("d")
+                            </Template>
+                        </RadzenDataGridColumn>
+
+                        <RadzenDataGridColumn TItem="Licencje" Property="LiczbaLicencji" Title="Liczba licencji" Width="100px" />
+
+                        <RadzenDataGridColumn TItem="Licencje" Property="IdLic" Sortable="false" Width="60px" Filterable="false">
+                            <Template Context="licencja">
+                                <a class="btn btn-primary oi oi-eye mb-1" href="licencje/details/@licencja.IdLic" />
+                            </Template>
+                        </RadzenDataGridColumn>
+
+                        <RadzenDataGridColumn TItem="Licencje" Property="IdLic" Sortable="false" Width="60px" Filterable="false">
+                            <Template Context="licencja">
+                                <button class="btn btn-danger oi oi-x mb-1" @onclick="@(() => AddCookie(licencja.IdLic, "CLOSED_LIC"))" />
+                            </Template>
+                        </RadzenDataGridColumn>
+
+                    </Columns>
+                </RadzenDataGrid>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    IJSObjectReference? module;
+
+    Appkomp[] appkomps { get; set; }
+    Licencje[] licencje { get; set; }
+
+    List<int> IDClosedAppKomps = new List<int>();
+    List<int> IDClosedLic = new List<int>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await client.SetToken();
+        appkomps = await client.GetFromJsonAsync<Appkomp[]>("api/alert");
+        licencje = await client.GetFromJsonAsync<Licencje[]>("api/licencje/wygasajace/" + 30);
+
+        module = await js.InvokeAsync<IJSObjectReference>("import", "./test.js");
+        var closedAppkomps = await module.InvokeAsync<string>("ReadCookie", "CLOSED_APPKOMPS");//czytanie usunietych powiadomien appKomps
+        var closedLic = await module.InvokeAsync<string>("ReadCookie", "CLOSED_LIC");//czytanie usunietych powiadomien licencji
+
+        RemoveAppKomps(closedAppkomps);//usuwanie appKomps co byly w cookies
+        RemoveLic(closedLic);//usuwanie licencji ktore byly w cookies
+    }
+
+    private void RemoveAppKomps(string appKompsToRemove)
+    {
+        if (appKompsToRemove != null && appKompsToRemove != "")
+        {
+            string[] closedAppkomps = appKompsToRemove.Split(',');
+
+            foreach (string appkomp in closedAppkomps)
+            {
+                IDClosedAppKomps.Add(Int32.Parse(appkomp));
+            }
+            appkomps = appkomps.Where(ak => !IDClosedAppKomps.Contains(ak.IdAppkomp)).ToArray();
+        }
+    }
+
+    private void RemoveLic(string LicToRemove)
+    {
+        if (LicToRemove != null && LicToRemove != "")
+        {
+            string[] closedLic = LicToRemove.Split(',');
+
+            foreach (string lic in closedLic)
+            {
+                IDClosedLic.Add(Int32.Parse(lic));
+            }
+            licencje = licencje.Where(l => !IDClosedLic.Contains(l.IdLic)).ToArray();
+        }
+    }
+
+    private void CellRender(DataGridCellRenderEventArgs<Appkomp> args)
+    {
+        string style = null;
+        if (args.Column.Property != "IdApp" && args.Column.Sortable == true)
+        {
+            style += "border-style: solid; border-color: #e0e0e0;border-width: thin;";
+        }
+
+        style += "background-color: #e46774;";//jasny czerwony
+
+        args.Attributes.Add("style", style);
+    }
+    private void CellRenderLic(DataGridCellRenderEventArgs<Licencje> args)
+    {
+        string style = null;
+        if (args.Column.Property != "IdLic" && args.Column.Sortable == true)
+        {
+            style += "border-style: solid; border-color: #e0e0e0;border-width: thin;";
+        }
+
+        style += "background-color: #e46774;";//jasny czerwony
+
+        args.Attributes.Add("style", style);
+    }
+
+    private async Task AddCookie(int ID, string cookie)
+    {
+        var closedID = await module.InvokeAsync<string>("ReadCookie", cookie);
+
+        if (closedID == null || closedID == "")
+        {
+            closedID = ID.ToString();
+        }
+        else
+        {
+            closedID += "," + ID;
+        }
+
+        await module.InvokeAsync<object>("WriteCookie", cookie, closedID, 1);
+
+        if (cookie == "CLOSED_APPKOMPS")
+        {
+            RemoveAppKomps(closedID);
+        }
+        else if(cookie == "CLOSED_LIC")
+        {
+            RemoveLic(closedID);
+        }
+    }
+}

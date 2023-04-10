@@ -1,0 +1,224 @@
+﻿@page "/numery_inwentaryzacyjne"
+
+@inject TokenHttpClientService client
+@inject IJSRuntime js
+@inject ContextMenuService ContextMenuService
+
+@using Inwentaryzacja.Client.Core
+
+<h3>Numery Inwentaryzacyjne</h3>
+
+<br>
+
+<div class="form-group">
+
+    <a class="btn btn-success mb-2" href="numery_inwentaryzacyjne/create"><i class="oi oi-plus"></i> Dodaj Nr</a>
+    <br/>
+    <button class="btn btn-primary" @onclick="@(() => ShowUsing())" >Używane</button>
+    <button class="btn btn-primary" @onclick="@(() => ShowNotUsing())">Nieużywane</button>
+    @if(showAll)
+    {
+        <button class="btn btn-primary mx-1" @onclick="@(() => ShowAll())">Wszystkie</button>
+    }
+
+</div>
+
+@if (allNumeryInwentaryzacyjne == null)
+{
+    <text>Loading...</text>
+}
+else if (allNumeryInwentaryzacyjne.Length == 0)
+{
+    <text>No Records Found.</text>
+}
+else
+{
+    <RadzenTabs Change=@OnTabChange>
+        <Tabs>
+            
+
+            <RadzenTabsItem Text="Nowy system">
+                <RadzenDataGrid Data="@numeryInwentaryzacyjneNew" TItem="NumeryInwentaryzacyjneNew" AllowSorting="true" AllowColumnResize="true" AllowPaging="true" class="mt-2"
+                            AllowFiltering="true" FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive" CellRender="@CellRenderNew"
+                            LogicalFilterOperator="LogicalFilterOperator.Or" FilterMode="FilterMode.Simple" PageSize="20" Density="Density.Compact">
+                    <Columns>
+                        <RadzenDataGridColumn TItem="NumeryInwentaryzacyjneNew" Property="IdNrInwentaryzacyjny" Title="Id" Width="50px" Filterable="false" Sortable="true" />
+                        <RadzenDataGridColumn TItem="NumeryInwentaryzacyjneNew" Property="NumerNew" Title="Numer Inwentaryzacyjny" />
+                        <RadzenDataGridColumn TItem="NumeryInwentaryzacyjneNew" Property="nazwaSpolka" Title="Spółka" />
+
+                        <RadzenDataGridColumn TItem="NumeryInwentaryzacyjneNew" Property="IdNrInwentaryzacyjny" Sortable="false" Width="60px" Filterable="false">
+                            <Template Context="numerInwentaryzacyjny">
+                                <a class="btn btn-success oi oi-pencil mb-1" href="numery_inwentaryzacyjne_new/edit/@numerInwentaryzacyjny.IdNrInwentaryzacyjny" />
+                            </Template>
+                        </RadzenDataGridColumn>
+                        <RadzenDataGridColumn TItem="NumeryInwentaryzacyjneNew" Property="IdNrInwentaryzacyjny" Sortable="false" Width="60px" Filterable="false">
+                            <Template Context="numerInwentaryzacyjny">
+                                <button class="btn btn-danger oi oi-x mb-1" @onclick="@(() => DeleteNew(numerInwentaryzacyjny.IdNrInwentaryzacyjny))" />
+                            </Template>
+                        </RadzenDataGridColumn>
+
+                    </Columns>
+                </RadzenDataGrid>
+            </RadzenTabsItem>
+            
+            <RadzenTabsItem Text="Stary system">
+                <RadzenDataGrid Data="@numeryInwentaryzacyjne" TItem="NumeryInwentaryzacyjne" AllowSorting="true" AllowColumnResize="true" AllowPaging="true" class="mt-2"
+                            AllowFiltering="true" FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive" CellRender="@CellRender"
+                            LogicalFilterOperator="LogicalFilterOperator.Or" FilterMode="FilterMode.Simple" PageSize="20" Density="Density.Compact">
+                    <Columns>
+                        <RadzenDataGridColumn TItem="NumeryInwentaryzacyjne" Property="IdNrInwentaryzacyjny" Title="Id" Width="50px" Filterable="false" Sortable="true" />
+                        <RadzenDataGridColumn TItem="NumeryInwentaryzacyjne" Property="Numer" Title="Numer Inwentaryzacyjny" />
+
+                        <RadzenDataGridColumn TItem="NumeryInwentaryzacyjne" Property="IdNrInwentaryzacyjny" Sortable="false" Width="60px" Filterable="false">
+                            <Template Context="numerInwentaryzacyjny">
+                                <a class="btn btn-success oi oi-pencil mb-1" href="numery_inwentaryzacyjne/edit/@numerInwentaryzacyjny.IdNrInwentaryzacyjny" />
+                            </Template>
+                        </RadzenDataGridColumn>
+                        <RadzenDataGridColumn TItem="NumeryInwentaryzacyjne" Property="IdNrInwentaryzacyjny" Sortable="false" Width="60px" Filterable="false">
+                            <Template Context="numerInwentaryzacyjny">
+                                <button class="btn btn-danger oi oi-x mb-1" @onclick="@(() => Delete(numerInwentaryzacyjny.IdNrInwentaryzacyjny))" />
+                            </Template>
+                        </RadzenDataGridColumn>
+
+                    </Columns>
+                </RadzenDataGrid>
+            </RadzenTabsItem>
+        </Tabs>
+    </RadzenTabs>
+    
+}
+@code {
+    bool showAll = false;
+    bool isNewSystem = true;
+
+    Sprzet defaultSprzet = new Sprzet();
+
+    NumeryInwentaryzacyjne[] allNumeryInwentaryzacyjne { get; set; }
+    NumeryInwentaryzacyjne[] numeryInwentaryzacyjne { get; set; }
+    NumeryInwentaryzacyjneNew[] allNumeryInwentaryzacyjneNew { get; set; }
+    NumeryInwentaryzacyjneNew[] numeryInwentaryzacyjneNew { get; set; }
+    Sprzet[] sprzet { get; set; }
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        await client.SetToken();
+
+        allNumeryInwentaryzacyjne = await client.GetFromJsonAsync<NumeryInwentaryzacyjne[]>("api/nrinwentaryzacja");
+        allNumeryInwentaryzacyjneNew = await client.GetFromJsonAsync<NumeryInwentaryzacyjneNew[]>("api/nrinwentaryzacjanew");
+        numeryInwentaryzacyjne = allNumeryInwentaryzacyjne;
+        numeryInwentaryzacyjneNew = allNumeryInwentaryzacyjneNew;
+        sprzet = await client.GetFromJsonAsync<Sprzet[]>("api/sprzet/nrinw");
+    }
+    private void CellRender(DataGridCellRenderEventArgs<NumeryInwentaryzacyjne> args)
+    {
+        if (args.Column.Property != "IdNrInwentaryzacyjny" && args.Column.Sortable == true)
+        {
+            args.Attributes.Add("style", "border-style: solid; border-color: #e0e0e0;border-width: thin;");//bordery
+        }
+    }
+
+    private void CellRenderNew(DataGridCellRenderEventArgs<NumeryInwentaryzacyjneNew> args)
+    {
+        if (args.Column.Property != "IdNrInwentaryzacyjny" && args.Column.Sortable == true)
+        {
+            args.Attributes.Add("style", "border-style: solid; border-color: #e0e0e0;border-width: thin;");//bordery
+        }
+    }
+
+    async Task ShowAll()
+    {
+        numeryInwentaryzacyjne = allNumeryInwentaryzacyjne;
+        numeryInwentaryzacyjneNew = allNumeryInwentaryzacyjneNew;
+
+        showAll = false;
+    }
+
+    async Task ShowUsing()
+    {
+        switch (isNewSystem)
+        {
+            case false:
+                numeryInwentaryzacyjne = allNumeryInwentaryzacyjne.Where(ni => sprzet.Select(s => s.IdNrInwentaryzacyjny).Contains(ni.IdNrInwentaryzacyjny)).ToArray();
+                break;
+            case true:
+                numeryInwentaryzacyjneNew = allNumeryInwentaryzacyjneNew.Where(ni => sprzet.Select(s => s.IdNrInwentaryzacyjnyNew).Contains(ni.IdNrInwentaryzacyjny)).ToArray();
+                break;
+        }
+
+
+        showAll = true;
+    }
+
+    async Task ShowNotUsing()
+    {
+        switch (isNewSystem)
+        {
+            case false:
+                numeryInwentaryzacyjne = allNumeryInwentaryzacyjne.Where(ni => !sprzet.Select(s => s.IdNrInwentaryzacyjny).Contains(ni.IdNrInwentaryzacyjny)).ToArray();
+                break;
+            case true:
+                numeryInwentaryzacyjneNew = allNumeryInwentaryzacyjneNew.Where(ni => !sprzet.Select(s => s.IdNrInwentaryzacyjnyNew).Contains(ni.IdNrInwentaryzacyjny)).ToArray();
+                break;
+        }
+
+        showAll = true;
+    }
+
+    async Task Delete(int id)
+    {
+        var numerInwentaryzacyjny = allNumeryInwentaryzacyjne.First(ni => ni.IdNrInwentaryzacyjny == id);
+
+        if (await js.InvokeAsync<bool>("confirm", $"Na pewno chcesz usunąć {numerInwentaryzacyjny.Numer} ({numerInwentaryzacyjny.IdNrInwentaryzacyjny}) Record?"))
+        {
+            var response = await client.DeleteAsync($"api/nrinwentaryzacja/{id}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                await Functions.DisplayNotification(notificationService, "Usunieto numer inwentaryzacyjny!", NotificationSeverity.Success);
+
+                await OnInitializedAsync();
+            }
+            else
+            {
+                await Functions.DisplayNotification(notificationService, "Nie udało się usunąć numeru inwentaryzacyjnego!", NotificationSeverity.Error);
+            }
+            await OnInitializedAsync();
+        }
+    }
+
+    async Task DeleteNew(int id)
+    {
+        var numerInwentaryzacyjny = allNumeryInwentaryzacyjneNew.First(ni => ni.IdNrInwentaryzacyjny == id);
+
+        if (await js.InvokeAsync<bool>("confirm", $"Na pewno chcesz usunąć {numerInwentaryzacyjny.NumerNew} ({numerInwentaryzacyjny.IdNrInwentaryzacyjny}) Record?"))
+        {
+            var response = await client.DeleteAsync($"api/nrinwentaryzacjanew/{id}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                await Functions.DisplayNotification(notificationService, "Usunieto numer inwentaryzacyjny!", NotificationSeverity.Success);
+
+                await OnInitializedAsync();
+            }
+            else
+            {
+                await Functions.DisplayNotification(notificationService, "Nie udało się usunąć numeru inwentaryzacyjnego!", NotificationSeverity.Error);
+            }
+            await OnInitializedAsync();
+        }
+    }
+
+    private void OnTabChange(int index)
+    {
+        switch (index)
+        {
+            case 0:
+                isNewSystem = true;
+                break;
+            case 1:
+                isNewSystem = false;
+                break;
+        }
+    }
+}

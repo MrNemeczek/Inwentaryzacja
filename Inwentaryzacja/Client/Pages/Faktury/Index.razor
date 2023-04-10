@@ -1,0 +1,108 @@
+﻿@page "/faktury"
+
+@inject TokenHttpClientService client
+@inject IJSRuntime js
+
+@using Inwentaryzacja.Client.Core
+
+<h3>Faktury</h3>
+<br/>
+
+
+@if (faktury == null)
+{
+    <text>Loading...</text>
+}
+else if (faktury.Length == 0)
+{
+    <text>No Records Found.</text>
+}
+else
+{
+    <div class="form-group">
+        <a class="btn btn-success" href="faktury/create"><i class="oi oi-plus"></i> Dodaj nową</a>
+    </div>
+    <div class="container" style="max-width: calc(85vw - 50px);">
+        <RadzenDataGrid  Data="@faktury" TItem="Faktury" AllowSorting="true" AllowColumnResize="true" 
+                    class="mt-2" AllowPaging="true" PageSize="20" CellRender="@CellRender" AllowFiltering="true"
+                    FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive" LogicalFilterOperator="LogicalFilterOperator.Or"
+                    FilterMode="FilterMode.Simple" Density="Density.Compact">
+            <Columns>
+                <RadzenDataGridColumn TItem="Faktury" Property="IdFaktura" Title="Id"  Filterable="false" Width="50px"/>
+                <RadzenDataGridColumn TItem="Faktury" Property="NazwaFaktura" Title="Nazwa faktury" Width="200px"/>
+
+                <RadzenDataGridColumn TItem="Faktury" Property="DataFaktura" Title="Data faktury" Width="100px">
+                    <Template Context="faktura">
+                        @faktura.DataFaktura.Value.ToString("d")
+                    </Template>
+                </RadzenDataGridColumn>
+
+                <RadzenDataGridColumn TItem="Faktury" Property="KwotaFaktura" Title="Kwota faktury" Width="200px" />
+
+                <RadzenDataGridColumn TItem="Faktury" Property="nazwaSpolka" Title="Nazwa spółki" Width="300px" />
+
+                <RadzenDataGridColumn TItem="Faktury" Property="nazwaTypFaktury" Title="Typ faktury" Width="200px" />
+
+                <RadzenDataGridColumn TItem="Faktury" Property="IdFaktura" Sortable="false"  Filterable="false" Width="60px">
+                    <Template Context="faktura">
+                        <a class="btn btn-success oi oi-pencil mb-1" href="faktury/edit/@faktura.IdFaktura" />
+                    </Template>
+                </RadzenDataGridColumn>
+                <RadzenDataGridColumn TItem="Faktury" Property="IdFaktura" Sortable="false"  Filterable="false" Width="60px">
+                    <Template Context="faktura">
+                        <a class="btn btn-primary oi oi-eye mb-1" href="faktury/details/@faktura.IdFaktura" />
+                    </Template>
+                </RadzenDataGridColumn>
+
+                <RadzenDataGridColumn TItem="Faktury" Property="IdFaktura" Sortable="false" Filterable="false" Width="60px">
+                    <Template Context="faktura">
+                        <button class="btn btn-danger oi oi-x mb-1" @onclick="@(() => Delete(faktura.IdFaktura))" />
+                    </Template>
+                </RadzenDataGridColumn>
+
+            </Columns>
+        </RadzenDataGrid>
+    </div>
+
+}
+@code {
+    Faktury faktura = new Faktury();
+
+    Faktury[] faktury { get; set; }
+    Faktury[] allFaktury { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await client.SetToken();
+
+        allFaktury = await client.GetFromJsonAsync<Faktury[]>("api/faktury");
+        faktury = allFaktury;       
+    }
+    private void CellRender(DataGridCellRenderEventArgs<Faktury> args)
+    {
+        if (args.Column.Sortable == true)
+        {
+            args.Attributes.Add("style", "border-style: solid; border-color: #e0e0e0;border-width: thin;");//bordery
+        }
+    }
+
+    async Task Delete(int fakturaId)
+    {
+        var faktura = faktury.First(x => x.IdFaktura == fakturaId);
+        if (await js.InvokeAsync<bool>("confirm", $"Na pewno chcesz usunąć {faktura.NazwaFaktura} ({faktura.IdFaktura}) Record?"))
+        {
+            var response = await client.DeleteAsync($"api/faktury/{fakturaId}");
+
+            if(response.IsSuccessStatusCode)
+            {
+                await Functions.DisplayNotification(notificationService, "Faktura została usunięta!", NotificationSeverity.Success);
+
+                faktury = await client.GetFromJsonAsync<Faktury[]>("api/faktury");
+            }
+            else
+            {
+                await Functions.DisplayNotification(notificationService, "Nie udało się usunąć faktury!", NotificationSeverity.Error);
+            }
+        }
+    }
+}

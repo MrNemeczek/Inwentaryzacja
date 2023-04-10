@@ -1,0 +1,22 @@
+﻿@page "/kalendarz"
+
+@using Inwentaryzacja.Shared.Models
+
+@inject HttpClient client
+    
+<RadzenScheduler @ref=@scheduler TItem="Licencje" Data="licencje" >
+        <RadzenDayView />
+        <RadzenWeekView />
+        <RadzenMonthView />
+    </RadzenScheduler>
+
+@code {
+    Licencje[] licencje { get; set; }
+
+    RadzenScheduler<Licencje> scheduler;
+
+    protected override async Task OnInitializedAsync()
+    {
+        licencje = await client.GetFromJsonAsync<Licencje[]>("api/licencje");
+    }
+}

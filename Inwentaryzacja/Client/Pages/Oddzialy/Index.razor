@@ -1,0 +1,83 @@
+﻿@page "/oddzialy"
+
+@inject TokenHttpClientService client
+@inject IJSRuntime js
+
+@using Inwentaryzacja.Shared.Models
+@using Inwentaryzacja.Client.Core
+
+<h3>Oddziały</h3>
+
+<br />
+<div class="form-group">
+    <a class="btn btn-success" href="oddzialy/create"><i class="oi oi-plus"></i> Create New</a>
+</div>
+@if (oddzialy == null)
+{
+    <text>Loading...</text>
+}
+else if (oddzialy.Length == 0)
+{
+    <text>No Records Found.</text>
+}
+else
+{
+    <RadzenDataGrid Data="@oddzialy" TItem="Oddzialy" AllowSorting="true" AllowColumnResize="true" AllowPaging="true" class="mt-2"
+                CellRender="@CellRender" Density="Density.Compact">
+        <Columns>
+            <RadzenDataGridColumn TItem="Oddzialy" Property="IdOddzialy" Title="Id" Width="50px"  />
+            
+            <RadzenDataGridColumn TItem="Oddzialy" Property="OddzialNazwa" Title="Nazwa Oddziału"  />
+
+            <RadzenDataGridColumn TItem="Oddzialy" Property="IdOddzialy" Sortable="false" Width="60px" >
+                <Template Context="oddzial">
+                    <a class="btn btn-success oi oi-pencil mb-1" href="oddzialy/edit/@oddzial.IdOddzialy"/>
+                </Template>
+            </RadzenDataGridColumn>
+            <RadzenDataGridColumn TItem="Oddzialy" Property="IdOddzialy" Sortable="false" Width="60px">
+                <Template Context="oddzial">
+                    <button class="btn btn-danger oi oi-x mb-1" @onclick="@(() => Delete(oddzial.IdOddzialy))" />
+                </Template>
+            </RadzenDataGridColumn>
+        </Columns>
+    </RadzenDataGrid>
+}
+
+@code 
+{
+    Oddzialy[] oddzialy { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await client.SetToken();
+
+        oddzialy = await client.GetFromJsonAsync<Oddzialy[]>("api/oddzialy");
+    }
+    private void CellRender(DataGridCellRenderEventArgs<Oddzialy> args)
+    {
+        if (args.Column.Property != "IdOddzialy" && args.Column.Sortable == true)
+        {
+            args.Attributes.Add("style", "border-style: solid; border-color: #e0e0e0;border-width: thin;");//bordery
+        }
+    }
+    async Task Delete(int oddzialId)
+    {
+        var oddzial = oddzialy.First(o => o.IdOddzialy == oddzialId);
+
+        if (await js.InvokeAsync<bool>("confirm", $"Na pewno chcesz usunąć {oddzial.OddzialNazwa} ({oddzial.IdOddzialy}) Record?"))
+        {
+            var response = await client.DeleteAsync($"api/oddzialy/{oddzialId}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                await Functions.DisplayNotification(notificationService, "Usunieto oddział!", NotificationSeverity.Success);
+
+                oddzialy = await client.GetFromJsonAsync<Oddzialy[]>("api/oddzialy");
+            }
+            else
+            {
+                await Functions.DisplayNotification(notificationService, "Nie udało się usunąć oddziału!", NotificationSeverity.Error);
+            }
+        }
+    }
+}

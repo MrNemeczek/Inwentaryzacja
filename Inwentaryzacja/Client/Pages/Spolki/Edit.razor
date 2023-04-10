@@ -1,0 +1,93 @@
+﻿@page "/spolki/edit/{Id}"
+
+@using Inwentaryzacja.Client.Core
+
+@inject TokenHttpClientService Http
+@inject NavigationManager NavigationManager
+
+<h3>Edytuj spółke</h3>
+<br/>
+
+@if (spolki == null)
+{
+    <text>Loading...</text>
+}
+else
+{
+    <div class="container">
+        <div class="row">
+            <div class="col">
+                <RadzenCard class="w-50">
+                    <EditForm Model="@spolka">
+                        <label> Nazwa Spółki </label>
+                        <input class="form-control" @bind="@spolka.NazwaSpolka" />
+                        <br/>
+
+                        <label> NIP </label>
+                        <input class="form-control" @bind="@spolka.NIP" />
+                        <br />
+
+                        <label> Symbol </label>
+                        <input class="form-control" @bind="@spolka.Symbol" />
+                    </EditForm>
+                </RadzenCard>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-3">
+        <div class="col-md-4">
+            <div class="form-group">
+                <input type="button" class="btn btn-primary" @onclick="@Save" value="Save" />
+                <input type="button" class="btn" @onclick="@Cancel" value="Cancel" />
+            </div>
+        </div>
+    </div>
+
+}
+
+@code {
+    [Parameter]
+    public string Id { get; set; }
+
+    Spolki[] spolki { get; set; }
+
+    Spolki spolka = new Spolki();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Http.SetToken();
+
+        spolka = await Http.GetFromJsonAsync<Spolki>("api/spoleczki/" + Id);
+        spolki = await Http.GetFromJsonAsync<Spolki[]>("api/spoleczki");
+    }
+
+    protected async Task Save()
+    {
+        if(!spolka.ValidSpolka())
+        {
+            await Functions.DisplayNotification(notificationService, "Sprawdź czy wszystkie dane są poprawne lub zostały wprowadzone!", NotificationSeverity.Warning);
+            
+            return;
+        }
+
+        var response = await Http.PutAsJsonAsync("api/spoleczki", spolka);
+
+        if (response.IsSuccessStatusCode)
+        {
+            await Functions.DisplayNotification(notificationService, "Zmodyfikowano spółke!", NotificationSeverity.Success);
+        }
+        else
+        {
+            await Functions.DisplayNotification(notificationService, "Nie udało się zmodyfikowac spółki!", NotificationSeverity.Error);
+
+            return;
+        }
+        NavigationManager.NavigateTo("spolki");
+
+    }
+    void Cancel()
+    {
+        NavigationManager.NavigateTo("spolki");
+    }
+}

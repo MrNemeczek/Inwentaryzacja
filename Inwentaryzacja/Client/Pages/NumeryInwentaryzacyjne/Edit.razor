@@ -1,0 +1,84 @@
+﻿@page "/numery_inwentaryzacyjne/edit/{Id}"
+
+@using Inwentaryzacja.Client.Core
+
+@inject TokenHttpClientService Http
+@inject NavigationManager NavigationManager
+
+<h3>Edytuj numer inwentaryzacyjny</h3>
+
+<br />
+
+@if (numerInwentaryzacyjny == null)
+{
+    <text>Loading...</text>
+}
+else
+{
+    <div class="row">
+        <EditForm Model="@numerInwentaryzacyjny">
+
+            <div class="col-md-6">
+                <div class="form-group">
+                    <label> Nazwa spółki </label>
+                    <input class="form-control" @bind="@numerInwentaryzacyjny.Numer" />
+                </div>
+            </div>
+
+        </EditForm>
+    </div>
+
+    <div class="row mt-2">
+        <div class="col-md-4">
+            <div class="form-group">
+                <input type="button" class="btn btn-primary" @onclick="@Save" value="Save" />
+                <input type="button" class="btn" @onclick="@Cancel" value="Cancel" />
+            </div>
+        </div>
+    </div>
+
+}
+
+@code {
+    [Parameter]
+    public string Id { get; set; }
+
+    NumeryInwentaryzacyjne numerInwentaryzacyjny;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Http.SetToken();
+
+        numerInwentaryzacyjny = await Http.GetFromJsonAsync<NumeryInwentaryzacyjne>("api/nrinwentaryzacja/" + Id);
+    }
+
+    protected async Task Save()
+    {
+        if (!numerInwentaryzacyjny.ValidNR())
+        {
+            await Functions.DisplayNotification(notificationService, "Sprawdź czy wszystkie dane są poprawne lub zostały wprowadzone!", NotificationSeverity.Warning);
+
+            return;
+        }
+
+        var response = await Http.PutAsJsonAsync("api/nrinwentaryzacja", numerInwentaryzacyjny);
+
+        if (response.IsSuccessStatusCode)
+        {
+            await Functions.DisplayNotification(notificationService, "Zmodyfkowano numer inwentaryzacyjny!", NotificationSeverity.Success);
+        }
+        else
+        {
+            await Functions.DisplayNotification(notificationService, "Nie udało się zmodyfikować numeru inwentaryzacyjnego!", NotificationSeverity.Error);
+
+            return;
+        }
+
+        NavigationManager.NavigateTo("numery_inwentaryzacyjne");
+
+    }
+    void Cancel()
+    {
+        NavigationManager.NavigateTo("numery_inwentaryzacyjne");
+    }
+}

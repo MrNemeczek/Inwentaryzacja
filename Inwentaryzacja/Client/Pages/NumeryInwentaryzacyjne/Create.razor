@@ -1,0 +1,192 @@
+﻿@page "/numery_inwentaryzacyjne/create"
+
+@using System.Text.Json
+@using Inwentaryzacja.Client.Core
+
+@inject TokenHttpClientService Http
+@inject NavigationManager NavigationManager
+
+<h3>Dodaj numer inwentaryzacyjny</h3>
+
+<br/>
+
+@if (numeryInwentaryzacyjne == null)
+{
+    <text>Loading...</text>
+}
+else
+{
+    <RadzenTabs Change=@OnTabChange>
+        <Tabs>
+            <RadzenTabsItem Text="Nowy system">
+                <div class="container">
+
+                    <div class="row">
+                        <div class="col">
+                            <EditForm Model="@numerInwentaryzacyjnyNew">
+                                <RadzenCard>
+
+                                    <label> Dla jakiej spółki ma być numer inwentaryzacyjny? </label>
+                                    <br/>
+
+                                    <select class="col-sm-4 m-1 form-select" @onchange="@((ChangeEventArgs args) => SelectChanged(args))">
+                                        <option value=""></option>
+                                        @foreach (Spolki spolka in spolki)
+                                        {
+                                            <option value="@spolka.IdSpolka">@spolka.NazwaSpolka</option>
+                                        }
+                                    </select>
+
+                                    <br/>
+                                    <label> Numer inwentaryzacyjny </label>
+                                    <input class="form-control w-50 mt-1" @bind="@numerInwentaryzacyjnyNew.NumerNew" />
+
+                                    <br/>
+                                    <input type="button" class="btn btn-success mt-3" @onclick="@GenerateNr" value="Generuj nowy numer">
+
+                                </RadzenCard>
+                            </EditForm>
+                        </div>
+                        <div class="col"/>
+                    </div>
+
+                </div>
+            </RadzenTabsItem>
+
+            <RadzenTabsItem Text="Stary system">
+                <RadzenCard>
+                    <EditForm Model="numerInwentaryzacyjnyNew">
+
+                        <div class="container">
+                            <div class="row">
+                                <div class="col">
+                                    <label> Numer Inwentaryzacyjny </label>
+                                    <input class="form-control w-50 mt-1" @bind="@numerInwentaryzacyjny.Numer" />
+                                </div>
+                            </div>
+                        </div>
+                    
+                    </EditForm>
+                </RadzenCard>
+            </RadzenTabsItem>
+        </Tabs>
+    </RadzenTabs>
+
+    <div class="row mt-3">
+        <div class="col-md-4">
+            <div class="form-group">
+                <input type="button" class="btn btn-primary" @onclick="@Save" value="Save" />
+                <input type="button" class="btn" @onclick="@Cancel" value="Cancel" />
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    bool isNewSystem = true;
+
+    NumeryInwentaryzacyjne numerInwentaryzacyjny = new NumeryInwentaryzacyjne();
+    NumeryInwentaryzacyjneNew numerInwentaryzacyjnyNew = new NumeryInwentaryzacyjneNew();
+    Spolki spolka = new Spolki();
+
+    NumeryInwentaryzacyjne[] numeryInwentaryzacyjne { get; set; }
+    Spolki[] spolki { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Http.SetToken();
+
+        numeryInwentaryzacyjne = await Http.GetFromJsonAsync<NumeryInwentaryzacyjne[]>("api/nrinwentaryzacja");
+        spolki = await Http.GetFromJsonAsync<Spolki[]>("api/spoleczki");
+    }
+
+    private async Task GenerateNr()
+    {
+        try
+        {
+            var lastNr = await Http.GetFromJsonAsync<NumeryInwentaryzacyjneNew>("api/nrinwentaryzacjanew/symbol/" + spolka.Symbol);
+            numerInwentaryzacyjnyNew.NumerNew = lastNr.NumerNew;
+
+        }
+        catch(Exception e)
+        {
+            Console.WriteLine(e.ToString());
+            await Functions.DisplayNotification(notificationService, "Coś poszło nie tak :(", NotificationSeverity.Error);
+        }
+    }
+
+    private async Task Save()
+    {
+
+        HttpResponseMessage? response;
+
+        switch (isNewSystem)
+        {
+            case false:
+                if (!numerInwentaryzacyjny.ValidNR())
+                {
+                    await Functions.DisplayNotification(notificationService, "Sprawdź czy wszystkie dane są poprawne lub zostały wprowadzone!", NotificationSeverity.Warning);
+
+                    return;
+                }
+                response = await Http.PostAsJsonAsync("api/nrinwentaryzacja", numerInwentaryzacyjny);
+                break;
+            case true:
+                if (!numerInwentaryzacyjnyNew.ValidNR())
+                {
+                    await Functions.DisplayNotification(notificationService, "Sprawdź czy wszystkie dane są poprawne lub zostały wprowadzone!", NotificationSeverity.Warning);
+
+                    return;
+                }
+                response = await Http.PostAsJsonAsync("api/nrinwentaryzacjanew", numerInwentaryzacyjnyNew);
+                break;
+        }
+
+        if(response.IsSuccessStatusCode)
+        {
+            await Functions.DisplayNotification(notificationService, "Dodano numer inwentaryzacyjny!", NotificationSeverity.Success);
+        }
+        else
+        {
+            await Functions.DisplayNotification(notificationService, "Nie udało się dodać numeru inwentaryzacyjnego!", NotificationSeverity.Error);
+
+            return;
+        }
+
+        numerInwentaryzacyjny.Numer = "";
+
+        numerInwentaryzacyjnyNew.NumerNew = "";
+    }
+
+    private void OnTabChange(int index)
+    {
+        switch (index)
+        {
+            case 0:
+                isNewSystem = true;
+                break;
+            case 1:
+                isNewSystem = false;
+                break;
+        }
+    }
+
+    private async void SelectChanged(ChangeEventArgs args)
+    {
+        spolka = await Http.GetFromJsonAsync<Spolki>("api/spoleczki/" + args.Value.ToString());
+
+        if(spolka.Symbol == null || spolka.Symbol.Trim() == "")
+        {
+            await Functions.DisplayNotification(notificationService, "Wybrana spółka nie posiada symbolu", NotificationSeverity.Info);
+
+            return;
+        }
+
+        numerInwentaryzacyjnyNew.IdSpolka = spolka.IdSpolka;
+    }
+
+    private void Cancel()
+    {
+        NavigationManager.NavigateTo("numery_inwentaryzacyjne");
+    }
+}

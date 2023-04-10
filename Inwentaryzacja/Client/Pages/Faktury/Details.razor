@@ -1,0 +1,155 @@
+﻿@page "/faktury/details/{Id}"
+
+@using Microsoft.JSInterop.Implementation;
+
+@inject TokenHttpClientService client
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JsRuntime
+
+<h3>Detale faktury</h3>
+
+<div class="container">
+
+    @if (spolki == null)
+    {
+        <text>Loading...</text>
+    }
+    else
+    {
+        <div class="row">
+            <div class="col">
+                <RadzenCard>
+                    <h5>Faktura</h5>
+                    <br/>
+
+                    <label class="m-1 w-100 text-center" style="font-weight: bold;"> Nazwa Faktury </label>
+                    <label class="m-1"> @faktura.NazwaFaktura </label>
+                    <br/>
+
+                    <label class="m-1 w-100 text-center" style="font-weight: bold;"> Kwota Faktury </label>
+                    <label class="m-1"> @faktura.KwotaFaktura </label>
+                    <br />
+
+                    <label class="m-1 w-100 text-center" style="font-weight: bold;"> Typ Faktury </label>
+                    <label class="m-1"> @typyFaktur.First(tf => tf.IdTypFaktury == faktura.IdTypFaktura).NazwaTypFaktury </label>
+                    <br />
+
+                    <label class="m-1 w-100 text-center" style="font-weight: bold;"> Data Faktury </label>
+                    <label class="m-1"> @faktura.DataFaktura.Value.ToString("d") </label>
+                    <br />
+
+                    <label class="m-1 w-100 text-center" style="font-weight: bold;"> Spółka </label>
+                    <label class="m-1"> @spolki.First(s => s.IdSpolka == faktura.IdSpolka).NazwaSpolka </label>
+                    <br />
+
+                    @if(faktura.PlikFaktura != null && faktura.PlikNazwa != null)
+                    {
+                        <input type="button" class="btn btn-primary" @onclick="@DownloadFile" value="Pobierz fakture" />                        
+                    }
+                </RadzenCard>
+            </div>
+            <div class="col">
+                @if(sprzety != null)
+                {                    
+                    <RadzenCard class="mb-3">
+                        <h5>Sprzęt</h5>
+                        <br/>
+
+                        @foreach (Sprzet sprzet in sprzety)
+                        {
+                            <label class="m-1"> @sprzet.NazwaSprzet</label>
+                            <br/>
+                        }
+                    </RadzenCard>
+                }
+                @if(licencje != null)
+                {                    
+                    <RadzenCard>
+                        <h5>Licencje</h5>
+                        <br/>
+
+                        @foreach (Licencje licencja in licencje)
+                        {
+                            <label class="m-1"> @licencja.Nazwa</label>
+                            <br/>
+                        }
+                    </RadzenCard>
+                }
+            </div>
+        </div>
+    }
+
+    <div class="row">
+        <div class="col-md-4">
+            <div class="form-group">
+                <input type="button" class="btn btn-primary mt-3" @onclick="@Cancel" value="Powrót" />
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    IJSObjectReference? module;
+
+    [Parameter]
+    public string Id { get; set; }
+
+    Faktury faktura = new Faktury();
+
+    TypFaktury[] typyFaktur { get; set; }
+    Spolki[] spolki { get; set; }
+    Licencje[] licencje { get; set; }
+    Sprzet[] sprzety { get; set; } 
+
+    protected override async Task OnInitializedAsync()
+    {
+        await client.SetToken();
+
+        faktura = await client.GetFromJsonAsync<Faktury>("api/faktury/" + Id);
+        typyFaktur = await client.GetFromJsonAsync<TypFaktury[]>("api/typfaktury");
+        spolki = await client.GetFromJsonAsync<Spolki[]>("api/spoleczki");
+
+        try
+        {
+            if (faktura.IdTypFaktura == 1 || faktura.IdTypFaktura == 4)
+            {
+                licencje = await client.GetFromJsonAsync<Licencje[]>("api/licencje/faktura/" + Id);
+            }
+            
+            if (faktura.IdTypFaktura == 2 || faktura.IdTypFaktura == 4)
+            {
+                sprzety = await client.GetFromJsonAsync<Sprzet[]>("api/sprzet/faktura/" + Id);
+            }      
+        }
+        catch (Exception)
+        {
+            Console.WriteLine("nie ma wynikow");
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        module = await JsRuntime.InvokeAsync<IJSObjectReference>("import", "./saveFile.js");
+    }
+
+    protected async Task DownloadFile()
+    {
+        try
+        {
+            string fileName = faktura.PlikNazwa;
+
+            await module.InvokeAsync<object>("saveFile", fileName, faktura.PlikFaktura);
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e.ToString());
+
+            throw;
+        }        
+    }
+
+    protected async Task Cancel()
+    {
+        NavigationManager.NavigateTo("faktury");
+    }
+}

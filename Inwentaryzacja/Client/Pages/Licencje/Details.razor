@@ -1,0 +1,93 @@
+﻿@page "/licencje/details/{Id}"
+
+@using Microsoft.JSInterop.Implementation;
+
+@inject TokenHttpClientService Http
+@inject NavigationManager NavigationManager
+
+<h3>Detale Licencji</h3>
+
+<div class="container">
+
+    @if (licencja == null)
+    {
+        <text>Loading...</text>
+    }
+    else
+    {
+        <div class="row">
+            <div class="col">
+                <RadzenCard>
+                    <h5>Licencja</h5>
+                    <br />
+
+                    <label class="m-1 w-100 text-center" style="font-weight: bold;"> Nazwa Licencji </label>
+                    <label class="m-1"> @licencja.Nazwa </label>
+                    <br />
+
+                    <label class="m-1 w-100 text-center" style="font-weight: bold;"> Klucz Licencji </label>
+                    <label class="m-1"> @licencja.Klucz </label>
+                    <br />
+
+                    <label class="m-1 w-100 text-center" style="font-weight: bold;"> Data Wygaśnięcia Licencji </label>
+                    <label class="m-1"> @licencja.DataWygLic.Value.ToString("d") </label>
+                    <br />
+
+                    <label class="m-1 w-100 text-center" style="font-weight: bold;"> Liczba Licencji </label>
+                    <label class="m-1"> @licencja.LiczbaLicencji </label>
+                    <br />
+
+                </RadzenCard>
+            </div>
+
+            <div class="col">
+                @if(uzyciaLicencji != null)
+                {                
+                    <RadzenCard>
+                        <h5>Komputery przypisane do licencji</h5>
+                        <br />
+
+                        @foreach (UzyciaLicencji uzycie in uzyciaLicencji)
+                        {
+                            <label class="m-1"> @uzycie.kompNazwaDomena</label>
+                            <br />
+                        }
+                    </RadzenCard>
+                }
+
+            </div>
+
+        </div>
+    }
+
+    <div class="row">
+        <div class="col-md-4">
+            <div class="form-group">
+                <input type="button" class="btn btn-primary mt-3" @onclick="@Back" value="Powrót" />
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public string Id { get; set; }
+
+    Licencje licencja { get; set; }
+
+    UzyciaLicencji[] uzyciaLicencji { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Http.SetToken();
+
+        licencja = await Http.GetFromJsonAsync<Licencje>("api/licencje/" + Id);
+
+        uzyciaLicencji = await Http.GetFromJsonAsync<UzyciaLicencji[]>("api/uzycialic/licencja/" + Id);
+    }
+
+    protected async Task Back()
+    {
+        NavigationManager.NavigateTo("licencje");
+    }
+}

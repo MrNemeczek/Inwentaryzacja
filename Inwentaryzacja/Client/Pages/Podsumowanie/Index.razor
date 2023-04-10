@@ -1,0 +1,130 @@
+﻿@page "/podsumowanie"
+
+@inject TokenHttpClientService client
+
+@using Inwentaryzacja.Client;
+@using Core;
+@using Inwentaryzacja.Shared.Models.Services
+
+<h3>Podsumowanie</h3>
+
+@if (sprzety != null)
+{
+    <RadzenTabs>
+        <Tabs>
+            <RadzenTabsItem Text="Sprzęty">
+                <div class="row">
+
+                    <div style="width: 350px">
+                        <RadzenChart>
+                            <RadzenPieSeries Data="@summarySprzetStan" Title="Stan sprzętu" CategoryProperty="Name" ValueProperty="Count" Radius="100">
+                                <RadzenSeriesDataLabels Visible="true" />
+                            </RadzenPieSeries>
+                        </RadzenChart>
+                    </div>
+
+                    <div style="width: 400px">
+                        <RadzenChart>
+                            <RadzenPieSeries Data="@summarySprzetOddzial" Title="Sprzęty w oddziałach" CategoryProperty="Name" ValueProperty="Count" Radius="100">
+                                <RadzenSeriesDataLabels Visible="true" />
+                            </RadzenPieSeries>
+                        </RadzenChart>
+                    </div>
+
+                    <div style="width: 400px">
+                        <RadzenChart>
+                            <RadzenPieSeries Data="@summarySprzetTyp" Title="Typy sprzętu" CategoryProperty="Name" ValueProperty="Count" Radius="100">
+                                <RadzenSeriesDataLabels Visible="true" />
+                            </RadzenPieSeries>
+                        </RadzenChart>
+                    </div>
+                
+                </div>
+
+            </RadzenTabsItem>
+
+            <RadzenTabsItem Text="Komputery">
+                <div class="row">
+
+                    <div class="col-3">
+                        <RadzenChart>
+                            <RadzenPieSeries Data="@summarySprzetStan" Title="Stan sprzętu" CategoryProperty="Name" ValueProperty="Count">
+                                <RadzenSeriesDataLabels Visible="true" />
+                            </RadzenPieSeries>
+                        </RadzenChart>
+                    </div>
+
+                </div>
+            </RadzenTabsItem>
+
+        </Tabs>
+    </RadzenTabs>
+
+    
+}
+
+@code 
+{
+    //Faktury[] faktury { get; set; }
+    //Faktury[] allFaktury { get; set; }
+    Sprzet[] sprzety { get; set; }
+    //Komp[] komputery { get; set; }
+
+    //List<Core.Summary> summaryKomp = new List<Core.Summary>();
+    List<Summary> summarySprzetStan = new List<Summary>();
+    List<Summary> summarySprzetTyp = new List<Summary>();
+    List<Summary> summarySprzetOddzial = new List<Summary>();
+
+    //Faktury faktura = new Faktury();  
+
+    //DateTime dateOd = DateTime.Now;
+    //DateTime dateDo = DateTime.Now;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await client.SetToken();
+
+        sprzety = await client.GetFromJsonAsync<Sprzet[]>("api/sprzet");
+        //komputery = await client.GetFromJsonAsync<Komp[]>("api/komp");
+        //allFaktury = await client.GetFromJsonAsync<Faktury[]>("api/faktury");
+
+        //faktury = allFaktury;
+
+        await PieSummary();
+    }
+    private async Task PieSummary()
+    {       
+        foreach (Sprzet sprzet in sprzety)
+        {
+            //robienie podsumowania ze stanu sprzetu
+            if (summarySprzetStan.Select(ss => ss.Name).Contains(sprzet.stan))
+            {
+                summarySprzetStan.FirstOrDefault(ss => ss.Name == sprzet.stan).Count++;
+            }
+            else
+            {
+                summarySprzetStan.Add(new Core.Summary { Name = sprzet.stan, Count = 1 });
+            }
+
+            //robienie podsumowania z typu sprzetu
+            if (summarySprzetTyp.Select(ss => ss.Name).Contains(sprzet.typ))
+            {
+                summarySprzetTyp.FirstOrDefault(ss => ss.Name == sprzet.typ).Count++;
+            }
+            else
+            {
+                summarySprzetTyp.Add(new Core.Summary { Name = sprzet.typ, Count = 1 });
+            }
+
+            //robienie podsumowania z oddzialow i sprzetow
+            if (summarySprzetOddzial.Select(ss => ss.Name).Contains(sprzet.oddzialNazwa))
+            {
+                summarySprzetOddzial.FirstOrDefault(ss => ss.Name == sprzet.oddzialNazwa).Count++;
+            }
+            else
+            {
+                summarySprzetOddzial.Add(new Core.Summary { Name = sprzet.oddzialNazwa, Count = 1 });
+            }
+        }
+    }
+}

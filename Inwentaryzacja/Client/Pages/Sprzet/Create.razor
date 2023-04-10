@@ -1,0 +1,313 @@
+﻿@page "/sprzet/create"
+
+@using Inwentaryzacja.Client.Core;
+
+@inject NavigationManager NavigationManager
+@inject TokenHttpClientService client
+
+<h2>Dodaj Sprzęt</h2>
+<br/>
+
+@if (stanySprzetow != null)
+{
+    <div class="container">
+        <EditForm Model="sprzet">
+            <div class="row">
+                <div class="col">
+                    <RadzenCard >
+                        <label class="m-1"> Nazwa Sprzętu <span style="color: red;">*</span></label>
+                        <br/>
+                        <input class="form-control m-1" @bind="@sprzet.NazwaSprzet" />
+
+                        <label class="m-1"> Marka </label>
+                        <br />
+                        <input class="form-control m-1" @bind="@sprzet.Marka" />
+
+                        <label class="m-1"> Model </label>
+                        <br />
+                        <input class="form-control m-1" @bind="@sprzet.Model" />
+
+                        <label class="m-1"> Numer Seryjny </label>
+                        <br />
+                        <input class="form-control m-1" @bind="@sprzet.NumerSeryjny" />
+
+                        <label class="m-1"> Numer Inwentaryzacyjny </label>
+                        <br />
+
+                        <input type="checkbox" checked="@newSystem" @oninput="@(() => ToggleCheckbox("newsystem"))"/>
+                        <small>Nowy system</small>
+                        <br/>
+                        <input type="checkbox" checked="@oldSystem" @oninput="@(() => ToggleCheckbox("oldsystem"))"/>
+                        <small>Stary system</small>
+                        <br/>
+
+                        @if(oldSystem)
+                        {
+                            <input class="form-control m-1" type="text" list="numeryInwentaryzacyjne" @onchange="@((ChangeEventArgs args) => SelectChanged(args))" />
+                            <datalist id="numeryInwentaryzacyjne">
+                                @foreach (NumeryInwentaryzacyjne numer in numeryInw)
+                                {
+                                    <option value="@numer.Numer"></option>
+                                }
+                            </datalist>
+                        }
+                        @if(newSystem)
+                        {
+                            <input class="form-control m-1" type="text" list="numeryInwentaryzacyjnenew" @onchange="@((ChangeEventArgs args) => NrNewSelectChanged(args))" />
+                            <datalist id="numeryInwentaryzacyjnenew">
+                                @foreach (NumeryInwentaryzacyjneNew numer in numeryIwnNew)
+                                {
+                                    <option value="@numer.NumerNew"></option>
+                                }
+                            </datalist>
+                        }
+
+                        <label class="m-1"> Uwagi </label>
+                        <br />
+                        <RadzenTextArea class="w-100" @bind-Value="sprzet.Comment" />
+                    </RadzenCard>
+                </div>
+
+                <div class="col">
+                    <RadzenCard>
+                        <label class="m-1"> Typ Sprzętu <span style="color: red;">*</span></label>
+                        <br />
+                        <InputSelect class="form-control" @bind-Value="@sprzet.IdTypSprzet">
+                            <option></option>
+                            @foreach (TypSprzet typSprzetu in typySprzetow)
+                            {
+                                <option value="@typSprzetu.IdTypSprzet">@typSprzetu.Typ</option>
+                            }
+                        </InputSelect>
+
+                        @if(sprzet.IdTypSprzet == 10 || sprzet.IdTypSprzet == 23)@*jesli komputer lub laptop*@
+                        {
+                            <label class="m-1"> Dodaj nazwę komputera </label>
+                            <br />
+                            <input class="form-control" type="text" list="komputery" value="" @onchange="@((ChangeEventArgs args) => KompSelectChanged(args))" />
+                            <datalist id="komputery">
+                                @foreach (Komp komp in kompy)
+                                {
+                                    <option value="@komp.KompNazwaDomena"></option>
+                                }
+                            </datalist>
+                        }
+
+                        <label class="m-1"> Stan Sprzętu <span style="color: red;">*</span></label>
+                        <br />
+                        <InputSelect class="form-control" @bind-Value="@sprzet.IdStan">
+                            <option></option>
+                            @foreach (StanSprzet stan in stanySprzetow)
+                            {
+                                <option value="@stan.IdStan">@stan.Stan</option>
+                            }
+                        </InputSelect>
+
+                        <label class="m-1"> Oddział <span style="color: red;">*</span></label>
+                        <br />
+                        <InputSelect class="form-control" @bind-Value="@sprzet.IdOddzialy">
+                            <option></option>
+                            @foreach (Oddzialy oddzial in oddzialy)
+                            {
+                                <option value="@oddzial.IdOddzialy">@oddzial.OddzialNazwa</option>
+                            }
+                        </InputSelect>
+
+                        <label class="m-1"> Spółka </label>
+                        <br />
+                        <InputSelect class="form-control" @bind-Value="@sprzet.IdSpolka">
+                            <option></option>
+                            @foreach (Spolki spolka in spolki)
+                            {
+                                <option value="@spolka.IdSpolka">@spolka.NazwaSpolka</option>
+                            }
+                        </InputSelect>
+
+                        <br />
+                        <InputCheckbox @bind-Value=@fakturaChecked />
+                        <label>Czy dostępna jest faktura?</label>
+                        <br />
+                        @if (fakturaChecked)
+                        {
+                            <label class="m-1"> Faktura </label>
+                            <br />
+                            <InputSelect class="form-control" @bind-Value="@sprzet.IdFaktura">
+                                <option></option>
+                                @foreach (Faktury faktura in faktury)
+                                {
+                                    <option value="@faktura.IdFaktura">@faktura.NazwaFaktura</option>
+                                }
+                            </InputSelect>
+                            <br />
+                        }
+                    </RadzenCard>
+                </div>
+
+            </div>
+        </EditForm>
+    </div>
+}
+
+<div class="row">
+    <div class="col-md-4 mt-3">
+        <div class="form-group">
+            <input type="button" class="btn btn-primary" @onclick="@Save" value="Save" />
+            <input type="button" class="btn" @onclick="@Cancel" value="Cancel" />
+        </div>
+    </div>
+</div>
+
+@code {
+    private int?[] idNumeryInw { get; set; }
+    private int?[] idNumeryInwNew { get; set; }
+
+    bool newSystem = false;
+    bool oldSystem = false;
+
+    Sprzet sprzet = new Sprzet();
+
+    Faktury[] faktury { get; set; }
+    Oddzialy[] oddzialy { get; set; }
+    TypSprzet[] typySprzetow { get; set; }
+    StanSprzet[] stanySprzetow { get; set; }
+    NumeryInwentaryzacyjne[] numeryInw { get; set; }
+    NumeryInwentaryzacyjneNew[] numeryIwnNew { get; set; }
+    Sprzet[] sprzetyWithNrInw { get; set; }
+    Sprzet[] sprzetyWithNrInwNew { get; set; }
+    Komp[] kompy { get; set; }
+    Spolki[] spolki { get; set; }
+
+    Komp komp { get; set; }
+
+    bool fakturaChecked = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await client.SetToken();
+
+        spolki = await client.GetFromJsonAsync<Spolki[]>("api/spoleczki");
+        faktury = await client.GetFromJsonAsync<Faktury[]>("api/faktury");
+        kompy = await client.GetFromJsonAsync<Komp[]>("api/komp");
+        kompy = kompy.Where(k => k.IdSprzet == null).ToArray();//kompy bez przypisanego sprzetu
+        oddzialy = await client.GetFromJsonAsync<Oddzialy[]>("api/oddzialy");
+        typySprzetow = await client.GetFromJsonAsync<TypSprzet[]>("api/typsprzet");
+        stanySprzetow = await client.GetFromJsonAsync<StanSprzet[]>("api/stansprzet");
+        numeryInw = await client.GetFromJsonAsync<NumeryInwentaryzacyjne[]>("api/nrinwentaryzacja");
+        sprzetyWithNrInw = await client.GetFromJsonAsync<Sprzet[]>("api/sprzet/nrinw");
+        idNumeryInw = sprzetyWithNrInw.Select(s => s.IdNrInwentaryzacyjny).ToArray();//zaciaganie wszystkich uzywanych numerow inwentaryzacyjnych
+        numeryInw = numeryInw.Where(n => !idNumeryInw.Contains(n.IdNrInwentaryzacyjny)).ToArray();//usuwanie z tablicy uzywanych numerow inwentaryzacyjnych
+
+        numeryIwnNew = await client.GetFromJsonAsync<NumeryInwentaryzacyjneNew[]>("api/nrinwentaryzacjanew");
+        sprzetyWithNrInwNew = await client.GetFromJsonAsync<Sprzet[]>("api/sprzet/nrinwnew");
+        idNumeryInwNew = sprzetyWithNrInwNew.Select(s => s.IdNrInwentaryzacyjnyNew).ToArray();//zaciaganie wszystkich uzywanych numerow inwentaryzacyjnych z nowego systemu
+        numeryIwnNew = numeryIwnNew.Where(n => !idNumeryInwNew.Contains(n.IdNrInwentaryzacyjny)).ToArray();//usuwanie z tablicy uzywanych numerow inwentaryzacyjnych z nowego systemu
+
+        faktury = faktury.Where(f => f.IdTypFaktura != 1).ToArray();
+    }
+
+    private void SelectChanged(ChangeEventArgs e)
+    {
+        string numerInw = e.Value.ToString();
+
+        try
+        {
+            sprzet.IdNrInwentaryzacyjny = numeryInw.FirstOrDefault(n => n.Numer == numerInw).IdNrInwentaryzacyjny;
+        }
+        catch 
+        {
+            Functions.DisplayNotification(notificationService, "Nie ma takiego numeru inwentaryzacyjnego!", NotificationSeverity.Warning);
+        }
+    }
+
+    private void KompSelectChanged(ChangeEventArgs e)
+    {
+        string nazwaKomputer = e.Value.ToString();
+
+        try
+        {
+            komp = kompy.FirstOrDefault(k => k.KompNazwaDomena == nazwaKomputer);
+        }
+        catch 
+        {
+            Functions.DisplayNotification(notificationService, "Nie ma takiego komputera!", NotificationSeverity.Warning);
+        }
+    }
+
+    private void NrNewSelectChanged(ChangeEventArgs e)
+    {
+        string numerInwNew = e.Value.ToString();
+
+        try
+        {
+            sprzet.IdNrInwentaryzacyjnyNew = numeryIwnNew.FirstOrDefault(n => n.NumerNew == numerInwNew).IdNrInwentaryzacyjny;
+        }
+        catch 
+        {
+            Functions.DisplayNotification(notificationService, "Nie ma takiego numeru inwentaryzacyjnego!", NotificationSeverity.Warning);
+        }
+    }
+
+    private void ToggleCheckbox(string checkbox)
+    {
+        if(checkbox == "newsystem")
+        {
+            oldSystem = false;
+            sprzet.IdNrInwentaryzacyjny = null;
+            newSystem = !newSystem;
+        }
+        else if(checkbox == "oldsystem")
+        {
+            newSystem = false;
+            sprzet.IdNrInwentaryzacyjnyNew = null;
+            oldSystem = !oldSystem;
+        }
+    }
+
+    private async Task Save()
+    {
+        if (!sprzet.ValidSprzet())
+        {
+            await Functions.DisplayNotification(notificationService, "Sprawdź czy wszystkie dane są poprawne lub zostały wprowadzone!", NotificationSeverity.Warning);
+
+            return;
+        }
+        if(sprzet.IdNrInwentaryzacyjnyNew != null)
+        {
+            var numerInwNew = numeryIwnNew.FirstOrDefault(ni => ni.IdNrInwentaryzacyjny == sprzet.IdNrInwentaryzacyjnyNew);
+
+            if(numerInwNew.IdSpolka != sprzet.IdSpolka)
+            {
+                await Functions.DisplayNotification(notificationService, "Numer inwentaryzacyjny nie należy do tej spółki!", NotificationSeverity.Warning);
+                return;
+            }
+        }
+
+        var response = await client.PostAsJsonAsync("api/sprzet", sprzet);
+
+        if(response.IsSuccessStatusCode)
+        {
+            await Functions.DisplayNotification(notificationService, "Dodano sprzęt!", NotificationSeverity.Success);
+
+            if (komp != null)
+            {
+                var idNewSprzet = await response.Content.ReadAsStringAsync();//zczytywanie ID nowego rekordu
+                komp.IdSprzet = Int32.Parse(idNewSprzet);
+                await client.PutAsJsonAsync("api/komp", komp);
+            }
+        }
+        else
+        {
+            await Functions.DisplayNotification(notificationService, "Nie udało się dodać sprzętu!", NotificationSeverity.Error);
+
+            return;
+        }
+
+        NavigationManager.NavigateTo("sprzet");
+    }
+
+    private async Task Cancel()
+    {
+        NavigationManager.NavigateTo("sprzet");
+    }
+
+}

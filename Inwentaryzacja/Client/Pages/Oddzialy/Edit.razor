@@ -1,0 +1,90 @@
+﻿@page "/oddzialy/edit/{Id}"
+
+@using Inwentaryzacja.Client.Core
+
+@inject TokenHttpClientService Http
+@inject NavigationManager NavigationManager
+
+<h3>Edytuj Oddział</h3>
+
+<br />
+
+@if (oddzialy == null)
+{
+    <text>Loading...</text>
+}
+else
+{
+    <div class="container">
+        <div class="row">
+            <div class="col">
+                <RadzenCard class="w-50">
+                    <EditForm Model="@oddzial">
+
+                        <label> Nazwa Oddziału </label>
+                        <input class="form-control" @bind="@oddzial.OddzialNazwa" />
+                        
+                    </EditForm>
+                </RadzenCard>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-3">
+        <div class="col-md-4">
+            <div class="form-group">
+                <input type="button" class="btn btn-primary" @onclick="@Save" value="Save" />
+                <input type="button" class="btn" @onclick="@Cancel" value="Cancel" />
+            </div>
+        </div>
+    </div>
+
+}
+
+@code 
+{
+    [Parameter]
+    public string Id { get; set; }
+
+    Oddzialy[] oddzialy { get; set; }
+
+    Oddzialy oddzial { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Http.SetToken();
+
+        oddzial = await Http.GetFromJsonAsync<Oddzialy>("api/oddzialy/" + Id);
+        oddzialy = await Http.GetFromJsonAsync<Oddzialy[]>("api/oddzialy");
+    }
+
+    protected async Task Save()
+    {
+        if (!oddzial.ValidOddzial())
+        {
+            await Functions.DisplayNotification(notificationService, "Sprawdź czy wszystkie dane są poprawne lub zostały wprowadzone!", NotificationSeverity.Warning);
+
+            return;
+        }
+
+        var response = await Http.PutAsJsonAsync("api/oddzialy", oddzial);
+
+        if (response.IsSuccessStatusCode)
+        {
+            await Functions.DisplayNotification(notificationService, "Zmodyfikowano oddział!", NotificationSeverity.Success);
+        }
+        else
+        {
+            await Functions.DisplayNotification(notificationService, "Nie udało się zmodyfikować oddziału!", NotificationSeverity.Error);
+
+            return;
+        }
+
+        NavigationManager.NavigateTo("oddzialy");
+
+    }
+    void Cancel()
+    {
+        NavigationManager.NavigateTo("oddzialy");
+    }
+}

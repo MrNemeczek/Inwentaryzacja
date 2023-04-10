@@ -1,0 +1,122 @@
+﻿@page "/app"
+
+@using App = Inwentaryzacja.Shared.Models.App;
+
+@inject TokenHttpClientService client
+
+
+<h3>Aplikacje</h3>
+<br/>
+
+<EditForm Model="@aplikacja" >
+    @if (blacklist == false)
+    {
+        <button class="btn btn-danger m-1" type="submit" @onclick="@(() => SearchBlacklist())">Aplikacje na czarnej liście</button>
+    }
+    else
+    {
+        <button class="btn btn-success m-1" type="submit" @onclick="@(() => SearchBlacklist())">Wszystkie</button>
+    }
+</EditForm>
+
+@if (apps == null)
+{
+    <text>Loading...</text>
+}
+else if (apps.Length == 0)
+{
+    <text>No Records Found.</text>
+}
+else
+{   
+    <RadzenDataGrid Data="@apps" TItem="App" AllowSorting="true" AllowColumnResize="true" AllowPaging="true" class="mt-2"
+        CellRender="@CellRender" AllowFiltering="true" FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive"
+                LogicalFilterOperator="LogicalFilterOperator.Or" FilterMode="FilterMode.Simple" PageSize="20" Density="Density.Compact">
+        <Columns>
+            <RadzenDataGridColumn TItem="App" Property="IdApp" Title="Id" Width="50px" Filterable="false"  />
+            <RadzenDataGridColumn TItem="App" Property="NazwaApp" Title="Nazwa Aplikacji"  />
+            <RadzenDataGridColumn TItem="App" Property="Wersja" Title="Wersja Aplikacji"  />
+            <RadzenDataGridColumn TItem="App" Property="IdApp" Sortable="false" Width="190px" Filterable="false" >
+                <Template Context="app">
+                    <a class="btn btn-success m-1" href="appkomp/@app.IdApp/0">Lista komputerów</a>
+                </Template>
+            </RadzenDataGridColumn>
+           
+            <RadzenDataGridColumn TItem="App" Property="IdApp" Sortable="false" Width="200px" Filterable="false">
+                <Template Context="app">
+                    @if(app.Blacklist != 1)
+                    {
+                        <button class="btn btn-danger m-1" style="width: 180px" @onclick="@(() => AddToBlackList(app.IdApp))">Dodaj do czarnej listy</button>
+                    }
+                    else
+                    {
+                        <button class="btn btn-primary m-1" style="width: 180px" @onclick="@(() => AddToWhiteList(app.IdApp))">Dodaj do białej listy</button>
+                    }              
+                </Template>
+            </RadzenDataGridColumn>
+        </Columns>
+    </RadzenDataGrid>
+}
+
+@code {
+    bool blacklist = false;
+
+    App[] apps { get; set; }
+    App[] allApps { get; set; }
+
+    App aplikacja = new App();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await client.SetToken();
+        allApps = await client.GetFromJsonAsync<App[]>("api/app");
+        apps = allApps;
+    }
+    private void CellRender(DataGridCellRenderEventArgs<App> args)
+    {
+        string style = null;
+        if (args.Column.Property != "IdApp" && args.Column.Sortable == true)
+        {
+            style += "border-style: solid; border-color: #e0e0e0;border-width: thin;";
+        }
+        if (args.Data.Blacklist == 1)
+        {
+            style += "background-color: #e46774;";
+        }
+        args.Attributes.Add("style", style);
+    }
+    async Task AddToBlackList(int appId)
+    {
+        var app = apps.First(x => x.IdApp == appId);
+        app.Blacklist = 1;//0 - nie jest w blacklist 1 - jest
+
+        var response = await client.PutAsJsonAsync("api/app", app);
+    }
+    async Task AddToWhiteList(int appId)
+    {
+        var app = apps.First(x => x.IdApp == appId);
+        app.Blacklist = 0;//0 - nie jest w blacklist 1 - jest
+
+        var response = await client.PutAsJsonAsync("api/app", app);
+
+        if(blacklist)
+        {            
+            apps = allApps.Where(a => a.Blacklist == 1).ToArray();
+        }
+    }
+
+    async Task SearchBlacklist()
+    {
+        if(blacklist == false)
+        {
+            apps = allApps.Where(a => a.Blacklist == 1).ToArray();
+        }
+
+        else
+        {
+            apps = allApps;
+        }
+
+        blacklist = !blacklist;
+    }
+}

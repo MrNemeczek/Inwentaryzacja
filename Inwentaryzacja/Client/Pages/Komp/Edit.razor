@@ -1,0 +1,139 @@
+﻿@page "/komp/edit/{Id}"
+
+@using Inwentaryzacja.Client.Core 
+
+@inject TokenHttpClientService Http
+@inject NavigationManager NavigationManager
+
+<h3>Edytuj komputer</h3>
+
+@if (komps == null)
+{
+    <text>Loading...</text>
+}
+else
+{
+    <div class="container">
+        <div class="row">
+            <div class="col">
+                <RadzenCard class="w-50">
+                    <EditForm Model="@komp">
+                        <label for="FirstName"> Nazwa <span style="color: red;">*</span></label>
+                        <input form="FirstName" class="form-control" @bind="@komp.KompNazwaDomena" />
+                        <br/>
+
+                        <label> Oddział </label>
+                        <br/>
+                        <InputSelect class="form-control" id="spolki" @bind-Value="@komp.IdOddzial">
+                            @foreach (Oddzialy oddzial in oddzialy)
+                            {
+                                <option value="@oddzial.IdOddzialy">@oddzial.OddzialNazwa</option>
+                            }
+                        </InputSelect>
+
+
+                        <label> Sprzęt </label>
+                        <br />
+                        @if(sprzety.Length != 0)
+                        {                            
+                            <input class="form-control" type="text" list="sprzety" value="@actualSprzet" @onchange="@((ChangeEventArgs args) => SelectChanged(args))" />
+                            <datalist id="sprzety">
+                                @foreach (Sprzet sprzet in sprzety)
+                                {
+                                    <option value="@sprzet.NazwaSprzet"></option>
+                                }
+                            </datalist>
+                        }
+                        else
+                        {
+                            <label style="color: red;">Nie ma żadnego dostępnego laptopa albo kompuera. Proszę dodać!</label>
+                        }
+
+                    </EditForm>
+                </RadzenCard>
+            </div>
+        </div>
+    </div>        
+
+    <div class="row mt-3">
+        <div class="col-md-4">
+            <div class="form-group">
+                <input type="button" class="btn btn-primary" @onclick="@Save" value="Save" />
+                <input type="button" class="btn" @onclick="@Cancel" value="Cancel" />
+            </div>
+        </div>
+    </div>
+    
+}
+
+@code {
+    [Parameter]
+    public string Id { get; set; }
+
+    private string actualSprzet = "";
+    private string actualUser = "";
+
+    private int?[] idSprzetyInKomps { get; set; }
+
+    Komp[] komps { get; set; }
+    Oddzialy[] oddzialy { get; set; }
+    Sprzet[] sprzety { get; set; }
+    Sprzet[] allSprzety { get; set; }
+
+    Komp komp = new Komp();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Http.SetToken();
+
+        komp = await Http.GetFromJsonAsync<Komp>("api/komp/" + Id);
+        komps = await Http.GetFromJsonAsync<Komp[]>("api/komp");
+        oddzialy = await Http.GetFromJsonAsync<Oddzialy[]>("api/oddzialy");
+        allSprzety = await Http.GetFromJsonAsync<Sprzet[]>("api/sprzet");
+        sprzety = allSprzety.Where(s => s.IdTypSprzet == 10 || s.IdTypSprzet == 23).ToArray();//zaciaga sprzet tylko ktory jest komputerem lub laptopem
+        idSprzetyInKomps = komps.Where(k => k.IdSprzet != null).Select(s => s.IdSprzet).ToArray();//zaciaga wszystkie idSprzet z komputerow
+        sprzety = sprzety.Where(s => !idSprzetyInKomps.Contains(s.IdSprzet)).ToArray();//sprawdza ktore sprzety nie maja jeszcze komputera albo laptopa
+
+        if(komp.IdSprzet != null)
+        {            
+            actualSprzet = allSprzety.FirstOrDefault(s => s.IdSprzet == komp.IdSprzet).NazwaSprzet;
+        }
+    }
+
+    private void SelectChanged(ChangeEventArgs e)
+    {
+        string sprzetNazwa = e.Value.ToString();
+
+        komp.IdSprzet = sprzety.FirstOrDefault(s => s.NazwaSprzet == sprzetNazwa).IdSprzet;
+    }
+
+    protected async Task Save()
+    {
+        if(!komp.ValidKomp())
+        {
+            await Functions.DisplayNotification(notificationService, "Sprawdź czy wszystkie dane są poprawne lub zostały wprowadzone!", NotificationSeverity.Warning);
+
+            return;
+        }
+
+        var response = await Http.PutAsJsonAsync("api/komp", komp);
+
+        if (response.IsSuccessStatusCode)
+        {
+            await Functions.DisplayNotification(notificationService, "Zmodyfikowano komputer!", NotificationSeverity.Success);
+        }
+        else
+        {
+            await Functions.DisplayNotification(notificationService, "Nie udało się zmodyfikować komputera!", NotificationSeverity.Error);
+
+            return;
+        }
+
+        NavigationManager.NavigateTo("komp");
+
+    }
+    void Cancel()
+    {
+        NavigationManager.NavigateTo("komp");
+    }
+}

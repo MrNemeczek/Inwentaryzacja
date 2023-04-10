@@ -1,0 +1,80 @@
+﻿@page "/komp"
+
+@inject TokenHttpClientService client
+@inject IJSRuntime js
+
+<h3>Komputery</h3>
+<br/>
+
+<div class="form-group">
+    <a class="btn btn-success" href="komp/create"><i class="oi oi-plus"></i> Dodaj </a>
+</div>
+
+@if (komps == null)
+{
+    <text>Loading...</text>
+}
+else if (komps.Length == 0)
+{
+    <text>No Records Found.</text>
+}
+else
+{
+
+    <RadzenDataGrid Data="@komps" TItem="Komp" AllowSorting="true" AllowColumnResize="true" AllowPaging="true" class="mt-2"
+                CellRender="@CellRender" PageSize="20" AllowFiltering="true" FilterCaseSensitivity="FilterCaseSensitivity.CaseInsensitive" 
+                LogicalFilterOperator="LogicalFilterOperator.Or" FilterMode="FilterMode.Simple"Density="Density.Compact">
+        <Columns>
+            <RadzenDataGridColumn TItem="Komp" Property="IdKomp" Title="Id" Width="50px" Filterable="false"/>
+            <RadzenDataGridColumn TItem="Komp" Property="KompNazwaDomena" Title="Nazwa komputera" Width="100px" />
+
+            <RadzenDataGridColumn TItem="Komp" Property="ZrzutCzas" Title="Czas zrzutu">
+                <Template Context="komp">
+                    @komp.ZrzutCzas.Value.ToString("d")
+                </Template>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="Komp" Property="Ip" Title="Adres IP" />
+
+            <RadzenDataGridColumn TItem="Komp" Property="oddzialNazwa" Title="Oddział" />
+
+            <RadzenDataGridColumn TItem="Komp" Property="IdKomp" Sortable="false" Width="180px" Filterable="false">
+                <Template Context="komp">
+                    <a class="btn btn-primary" href="appkomp/0/@komp.IdKomp">Sprawdź aplikacje</a>
+                </Template>
+            </RadzenDataGridColumn>
+
+            <RadzenDataGridColumn TItem="Komp" Property="IdKomp" Sortable="false" Width="60px" Filterable="false">
+                <Template Context="komp">
+                    <a class="btn btn-success oi oi-pencil mb-1" href="komp/edit/@komp.IdKomp"/>
+                </Template>
+            </RadzenDataGridColumn>
+
+        </Columns>
+    </RadzenDataGrid>
+
+}
+@code {
+    Komp[] komps { get; set; }
+    Komp[] allKomps { get; set; }
+
+    Komp komp = new Komp();
+
+    string searchString;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await client.SetToken();
+
+        allKomps = await client.GetFromJsonAsync<Komp[]>("api/komp");
+        komps = allKomps;
+    }
+    private void CellRender(DataGridCellRenderEventArgs<Komp> args)
+    {
+        if (args.Column.Property != "IdKomp" && args.Column.Sortable == true)
+        {
+            args.Attributes.Add("style", "border-style: solid; border-color: #e0e0e0;border-width: thin;");//bordery          
+        }
+    }
+
+}
